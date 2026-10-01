@@ -10,10 +10,12 @@ import {
   GitFork,
   Merge,
   ArrowRight,
+  Copy,
+  Check,
 } from 'lucide-react';
 import type { ThoughtFlowNode } from '../../types/graph';
 import { CodeBlock } from '../ui/CodeBlock';
-import { getModelBadgeInfo } from '../../utils/formatters';
+import { getModelBadgeInfo, copyToClipboard } from '../../utils/formatters';
 import { getBranchAncestors } from '../../utils/contextResolver';
 
 interface NodeDetailModalProps {
@@ -35,6 +37,7 @@ export const NodeDetailModal: React.FC<NodeDetailModalProps> = ({
   onToggleMergeSelect,
   isSelectedForMerge,
 }) => {
+  const [copied, setCopied] = React.useState(false);
   if (!isOpen || !nodeId) return null;
 
   const node = nodes.find((n) => n.id === nodeId);
@@ -44,6 +47,14 @@ export const NodeDetailModal: React.FC<NodeDetailModalProps> = ({
   const ancestors = getBranchAncestors(nodeId, nodesMap);
   const isUser = node.data.role === 'user';
   const modelInfo = getModelBadgeInfo(node.data.modelUsed);
+
+  const handleCopy = async () => {
+    const success = await copyToClipboard(node.data.content);
+    if (success) {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -107,8 +118,8 @@ export const NodeDetailModal: React.FC<NodeDetailModalProps> = ({
         </div>
 
         {/* Content Area */}
-        <div className="p-6 overflow-y-auto flex-1 space-y-4 text-sm leading-relaxed">
-          <div className="prose-custom max-w-none">
+        <div className="p-6 overflow-y-auto flex-1 space-y-4 text-sm leading-relaxed select-text selectable-text" dir="auto">
+          <div className="prose-custom max-w-none select-text selectable-text cursor-text" dir="auto">
             <ReactMarkdown
               remarkPlugins={[remarkGfm]}
               components={{
@@ -150,6 +161,15 @@ export const NodeDetailModal: React.FC<NodeDetailModalProps> = ({
           </div>
 
           <div className="flex items-center gap-2">
+            <button
+              onClick={handleCopy}
+              className="px-3 py-1.5 rounded-lg border border-zinc-700 bg-zinc-900 hover:bg-zinc-800 text-zinc-200 hover:text-white text-xs font-medium transition-colors flex items-center gap-1.5"
+              title="Copy content"
+            >
+              {copied ? <Check className="w-3.5 h-3.5 text-white" /> : <Copy className="w-3.5 h-3.5" />}
+              <span>{copied ? 'تم النسخ' : 'نسخ النص'}</span>
+            </button>
+
             <button
               onClick={() => {
                 onToggleMergeSelect(node.id);

@@ -96,7 +96,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
             className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-zinc-200 hover:text-white hover:bg-zinc-900 transition-colors text-left"
           >
             <GitFork className="w-3.5 h-3.5 text-zinc-300 transform -rotate-90" />
-            <span>Fork Branch from Here</span>
+            <span>تفريغ مسار / Fork Branch</span>
           </button>
 
           <button
@@ -107,7 +107,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
             className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-zinc-200 hover:text-white hover:bg-zinc-900 transition-colors text-left"
           >
             <MessageSquare className="w-3.5 h-3.5 text-zinc-100" />
-            <span className="font-medium">Focus Flow (Full View)</span>
+            <span className="font-medium">المحادثة والتعديل / Focus Flow</span>
           </button>
 
           <button
@@ -118,7 +118,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
             className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-zinc-200 hover:text-white hover:bg-zinc-900 transition-colors text-left"
           >
             <Merge className="w-3.5 h-3.5 text-zinc-300" />
-            <span>{isSelectedForMerge ? 'Remove from Merge' : 'Pick for Merge'}</span>
+            <span>{isSelectedForMerge ? 'إزالة من الدمج / Remove Merge' : 'تحديد للدمج / Pick for Merge'}</span>
           </button>
 
           <button
@@ -129,7 +129,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
             className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-zinc-200 hover:text-white hover:bg-zinc-900 transition-colors text-left"
           >
             <Copy className="w-3.5 h-3.5 text-zinc-400" />
-            <span>Copy Content</span>
+            <span>نسخ المحتوى / Copy Content</span>
           </button>
 
           <button

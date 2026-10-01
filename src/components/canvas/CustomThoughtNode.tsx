@@ -17,6 +17,7 @@ import {
   Coins,
   MessageSquare,
   RotateCw,
+  Pencil,
 } from 'lucide-react';
 import type { ThoughtNodeData } from '../../types/graph';
 import { CodeBlock } from '../ui/CodeBlock';
@@ -33,6 +34,7 @@ export const CustomThoughtNode: React.FC<NodeProps> = memo(({ id, data, selected
     onDeleteNode,
     onInspectNode,
     onRetryNode,
+    onUpdateNodeContent,
     selectedForMergeIds,
     activeParentId,
   } = useNodeActions();
@@ -41,6 +43,19 @@ export const CustomThoughtNode: React.FC<NodeProps> = memo(({ id, data, selected
   const isActiveForkParent = activeParentId === id;
 
   const [copied, setCopied] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editContent, setEditContent] = useState('');
+
+  const handleToggleEdit = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!isEditing) {
+      setEditContent(nodeData.content || '');
+      setIsEditing(true);
+    } else {
+      setIsEditing(false);
+    }
+  };
+
   const isUser = nodeData.role === 'user';
   const isGenerating = nodeData.status === 'generating';
   const isError = nodeData.status === 'error';
@@ -141,8 +156,71 @@ export const CustomThoughtNode: React.FC<NodeProps> = memo(({ id, data, selected
       )}
 
       {/* Content Area */}
-      <div className="p-3.5 text-xs text-zinc-200 max-h-72 overflow-y-auto leading-relaxed scrollbar-thin">
-        {isGenerating && !nodeData.content ? (
+      <div className="p-3.5 text-xs text-zinc-200 max-h-72 overflow-y-auto leading-relaxed scrollbar-thin nodrag select-text selectable-text">
+        {isEditing ? (
+          <div className="nodrag nopan space-y-2 select-text" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between text-[11px] text-zinc-400 pb-1 border-b border-zinc-800">
+              <span className="font-semibold text-zinc-200 flex items-center gap-1.5">
+                <Pencil className="w-3 h-3 text-zinc-300" />
+                <span>تعديل المحتوى / Edit Prompt</span>
+              </span>
+              <span className="text-[10px] text-zinc-500 font-mono">يدعم العربية / Markdown</span>
+            </div>
+
+            <textarea
+              value={editContent}
+              onChange={(e) => setEditContent(e.target.value)}
+              rows={4}
+              dir="auto"
+              className="w-full bg-zinc-900 border border-zinc-700 focus:border-zinc-300 rounded-xl p-2.5 text-xs text-zinc-100 placeholder-zinc-500 focus:outline-none leading-relaxed resize-y font-sans transition-colors bidi-auto"
+              placeholder="اكتب التعديل على الـ Prompt أو النص هنا..."
+            />
+
+            <div className="flex flex-wrap items-center justify-between gap-1.5 pt-1">
+              <div className="flex items-center gap-1.5">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onUpdateNodeContent(id, editContent, true);
+                    setIsEditing(false);
+                  }}
+                  type="button"
+                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-zinc-100 hover:bg-white text-zinc-950 text-[11px] font-semibold transition-colors shadow-sm"
+                  title="حفظ وتوليد الرد مجدداً بناءً على الـ Prompt المعدل"
+                >
+                  <Sparkles className="w-3 h-3 text-zinc-950" />
+                  <span>حفظ وتوليد الرد</span>
+                </button>
+
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onUpdateNodeContent(id, editContent, false);
+                    setIsEditing(false);
+                  }}
+                  type="button"
+                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 text-[11px] font-medium transition-colors"
+                  title="حفظ التعديل على النص فقط دون إعادة تشغيل الذكاء الاصطناعي"
+                >
+                  <Check className="w-3 h-3 text-zinc-300" />
+                  <span>حفظ فقط</span>
+                </button>
+              </div>
+
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setEditContent(nodeData.content || '');
+                  setIsEditing(false);
+                }}
+                type="button"
+                className="px-2 py-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 text-[11px] transition-colors"
+              >
+                إلغاء
+              </button>
+            </div>
+          </div>
+        ) : isGenerating && !nodeData.content ? (
           <div className="flex items-center gap-2 text-zinc-400 py-3">
             <Sparkles className="w-4 h-4 animate-spin text-zinc-100" />
             <span className="text-xs">Generating thoughtful response...</span>
@@ -192,7 +270,7 @@ export const CustomThoughtNode: React.FC<NodeProps> = memo(({ id, data, selected
             </div>
           </div>
         ) : (
-          <div className="prose-custom text-zinc-200">
+          <div className="prose-custom text-zinc-200 select-text selectable-text cursor-text" dir="auto">
             <ReactMarkdown
               remarkPlugins={[remarkGfm]}
               components={{
@@ -247,6 +325,20 @@ export const CustomThoughtNode: React.FC<NodeProps> = memo(({ id, data, selected
             title="Focus Flow (Full View as Conversation)"
           >
             <MessageSquare className="w-3.5 h-3.5" />
+          </button>
+
+          {/* Edit Prompt Button */}
+          <button
+            onClick={handleToggleEdit}
+            type="button"
+            className={`p-1 rounded transition-colors ${
+              isEditing
+                ? 'bg-white text-zinc-950 font-bold'
+                : 'text-zinc-400 hover:text-white hover:bg-zinc-800'
+            }`}
+            title="تعديل الـ Prompt / Edit Prompt"
+          >
+            <Pencil className="w-3.5 h-3.5" />
           </button>
 
           <button

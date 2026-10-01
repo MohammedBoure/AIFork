@@ -56,6 +56,7 @@ export function ThoughtGraphApp() {
     handleDeleteNode,
     handleBatchDelete,
     handleRetryNode,
+    handleUpdateNodeContent,
     handleAutoLayout,
     handleSaveSettings,
     handleLoadGraph,
@@ -70,7 +71,7 @@ export function ThoughtGraphApp() {
   );
 
   return (
-    <div className="flex flex-col w-screen h-screen overflow-hidden bg-black text-zinc-100 select-none">
+    <div className="flex flex-col w-screen h-screen overflow-hidden bg-black text-zinc-100">
       {/* Top Navigation */}
       <Navbar
         nodeCount={nodes.length}
@@ -109,6 +110,7 @@ export function ThoughtGraphApp() {
           onDeleteNode={handleDeleteNode}
           onInspectNode={setInspectedNodeId}
           onRetryNode={handleRetryNode}
+          onUpdateNodeContent={handleUpdateNodeContent}
           onAutoLayout={handleAutoLayout}
           layoutDirection={layoutDirection}
           showMinimap={showMinimap}
@@ -139,6 +141,7 @@ export function ThoughtGraphApp() {
         targetNodeId={focusNodeId}
         nodes={nodes}
         onReplyInFlow={handleAddThought}
+        onUpdateNodeContent={handleUpdateNodeContent}
         isGenerating={isGenerating}
         availableModels={availableModels}
         defaultModel={settings.defaultModel}

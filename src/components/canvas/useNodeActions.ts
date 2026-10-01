@@ -12,6 +12,7 @@ export function useNodeActions(): NodeActionsContextValue {
       onDeleteNode: () => {},
       onInspectNode: () => {},
       onRetryNode: () => {},
+      onUpdateNodeContent: () => {},
       selectedForMergeIds: [],
       activeParentId: null,
     };

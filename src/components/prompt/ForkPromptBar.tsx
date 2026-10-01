@@ -104,16 +104,17 @@ export const ForkPromptBar: React.FC<ForkPromptBarProps> = ({
           <textarea
             ref={textareaRef}
             rows={2}
+            dir="auto"
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder={
               activeParentId
-                ? 'Expand this thought, challenge assumptions, or propose a new branch direction...'
-                : 'Start a new thought graph or problem statement...'
+                ? 'طوّر هذه الفكرة، أو اعترض على الافتراضات، أو اقترح مساراً جديداً... (Expand branch)'
+                : 'ابدأ فكرة أو مساراً جديداً... (Start new thought graph)'
             }
             disabled={isGenerating}
-            className="flex-1 bg-transparent resize-none text-xs sm:text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none leading-relaxed max-h-36 overflow-y-auto"
+            className="flex-1 bg-transparent resize-none text-xs sm:text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none leading-relaxed max-h-36 overflow-y-auto font-sans bidi-auto"
           />
 
           <button

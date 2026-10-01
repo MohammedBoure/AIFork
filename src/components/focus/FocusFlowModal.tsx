@@ -11,6 +11,7 @@ import {
   Check,
   Coins,
   GitFork,
+  Pencil,
 } from 'lucide-react';
 import type { ThoughtFlowNode, ModelOption } from '../../types/graph';
 import { getBranchAncestors } from '../../utils/contextResolver';
@@ -24,6 +25,7 @@ interface FocusFlowModalProps {
   targetNodeId: string | null;
   nodes: ThoughtFlowNode[];
   onReplyInFlow: (userPrompt: string, modelId: string, parentNodeId: string) => void;
+  onUpdateNodeContent?: (nodeId: string, newContent: string, regenerateChildren?: boolean) => void;
   isGenerating: boolean;
   availableModels: ModelOption[];
   defaultModel: string;
@@ -35,6 +37,7 @@ export const FocusFlowModal: React.FC<FocusFlowModalProps> = ({
   targetNodeId,
   nodes,
   onReplyInFlow,
+  onUpdateNodeContent,
   isGenerating,
   availableModels,
   defaultModel,
@@ -42,6 +45,9 @@ export const FocusFlowModal: React.FC<FocusFlowModalProps> = ({
   const [replyText, setReplyText] = useState('');
   const [selectedModel, setSelectedModel] = useState(defaultModel);
   const [copiedAll, setCopiedAll] = useState(false);
+  const [copiedNodeId, setCopiedNodeId] = useState<string | null>(null);
+  const [editingNodeId, setEditingNodeId] = useState<string | null>(null);
+  const [editingContent, setEditingContent] = useState('');
   const chatBottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -92,6 +98,26 @@ export const FocusFlowModal: React.FC<FocusFlowModalProps> = ({
     }
   };
 
+  const handleCopyMessage = async (content: string, id: string) => {
+    const success = await copyToClipboard(content);
+    if (success) {
+      setCopiedNodeId(id);
+      setTimeout(() => setCopiedNodeId(null), 2000);
+    }
+  };
+
+  const handleStartEdit = (nodeId: string, currentContent: string) => {
+    setEditingNodeId(nodeId);
+    setEditingContent(currentContent);
+  };
+
+  const handleSaveEdit = (nodeId: string, regenerate: boolean) => {
+    if (onUpdateNodeContent) {
+      onUpdateNodeContent(nodeId, editingContent, regenerate);
+    }
+    setEditingNodeId(null);
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-zinc-950 text-zinc-100 animate-in fade-in duration-200">
       {/* Top Header Bar */}
@@ -103,7 +129,7 @@ export const FocusFlowModal: React.FC<FocusFlowModalProps> = ({
             title="Exit Full View (Esc)"
           >
             <ArrowLeft className="w-3.5 h-3.5" />
-            <span>Exit Focus View</span>
+            <span>خروج / Exit Focus View</span>
             <kbd className="hidden sm:inline px-1.5 py-0.2 bg-zinc-800 rounded font-mono text-[10px] text-zinc-400">Esc</kbd>
           </button>
 
@@ -127,12 +153,12 @@ export const FocusFlowModal: React.FC<FocusFlowModalProps> = ({
             {copiedAll ? (
               <>
                 <Check className="w-3.5 h-3.5 text-zinc-100" />
-                <span>Copied Flow</span>
+                <span>تم نسخ المحادثة</span>
               </>
             ) : (
               <>
                 <Copy className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Copy Flow</span>
+                <span className="hidden sm:inline">نسخ المسار بالكامل</span>
               </>
             )}
           </button>
@@ -151,6 +177,8 @@ export const FocusFlowModal: React.FC<FocusFlowModalProps> = ({
       <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-6 max-w-4xl w-full mx-auto space-y-6">
         {branchNodes.map((node, index) => {
           const isUser = node.data.role === 'user';
+          const isCurrentEditing = editingNodeId === node.id;
+          const isCurrentCopied = copiedNodeId === node.id;
 
           return (
             <div
@@ -161,6 +189,30 @@ export const FocusFlowModal: React.FC<FocusFlowModalProps> = ({
               <div className="flex items-center gap-2 px-1 text-xs text-zinc-400">
                 {isUser ? (
                   <>
+                    {/* Action buttons for user message */}
+                    <div className="flex items-center gap-1 mr-1">
+                      {onUpdateNodeContent && (
+                        <button
+                          onClick={() => handleStartEdit(node.id, node.data.content)}
+                          className="p-1 rounded text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors"
+                          title="تعديل الـ Prompt / Edit Prompt"
+                        >
+                          <Pencil className="w-3 h-3" />
+                        </button>
+                      )}
+                      <button
+                        onClick={() => handleCopyMessage(node.data.content, node.id)}
+                        className="p-1 rounded text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors"
+                        title="نسخ نص السؤال / Copy Prompt"
+                      >
+                        {isCurrentCopied ? (
+                          <Check className="w-3 h-3 text-zinc-100" />
+                        ) : (
+                          <Copy className="w-3 h-3" />
+                        )}
+                      </button>
+                    </div>
+
                     <span className="text-[11px] text-zinc-500">
                       {formatTimestamp(node.data.createdAt)}
                     </span>
@@ -175,7 +227,7 @@ export const FocusFlowModal: React.FC<FocusFlowModalProps> = ({
                       <Sparkles className="w-3.5 h-3.5 text-zinc-950" />
                     </div>
                     <span className="font-semibold text-zinc-100">
-                      Gemini AI
+                      {node.data.modelUsed?.includes('deepseek') ? 'DeepSeek AI' : 'Gemini AI'}
                     </span>
                     {node.data.modelUsed && (
                       <span className="text-[10px] px-2 py-0.2 rounded-full font-mono bg-zinc-800 text-zinc-200 border border-zinc-700">
@@ -185,25 +237,92 @@ export const FocusFlowModal: React.FC<FocusFlowModalProps> = ({
                     <span className="text-[11px] text-zinc-500">
                       {formatTimestamp(node.data.createdAt)}
                     </span>
+
+                    {/* Copy action for assistant message */}
+                    <div className="flex items-center gap-1 ml-1">
+                      <button
+                        onClick={() => handleCopyMessage(node.data.content, node.id)}
+                        className="p-1 rounded text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors"
+                        title="نسخ رد الذكاء الاصطناعي / Copy AI Response"
+                      >
+                        {isCurrentCopied ? (
+                          <Check className="w-3 h-3 text-zinc-100" />
+                        ) : (
+                          <Copy className="w-3 h-3" />
+                        )}
+                      </button>
+                    </div>
                   </>
                 )}
               </div>
 
               {/* Message Bubble / Card */}
               <div
-                className={`w-full max-w-3xl rounded-2xl p-5 text-sm leading-relaxed border shadow-md ${
+                className={`w-full max-w-3xl rounded-2xl p-5 text-sm leading-relaxed border shadow-md select-text selectable-text ${
                   isUser
                     ? 'bg-zinc-900/90 border-zinc-700 text-zinc-100 rounded-tr-sm'
                     : 'bg-zinc-950 border-zinc-800 text-zinc-200 rounded-tl-sm'
                 }`}
+                dir="auto"
               >
-                {node.data.status === 'generating' && !node.data.content ? (
+                {isCurrentEditing ? (
+                  <div className="space-y-3" dir="auto">
+                    <div className="flex items-center justify-between text-xs text-zinc-400 pb-1 border-b border-zinc-800">
+                      <span className="font-semibold text-white flex items-center gap-1.5">
+                        <Pencil className="w-3.5 h-3.5 text-zinc-300" />
+                        <span>تعديل الـ Prompt في المحادثة</span>
+                      </span>
+                      <span className="text-[11px] text-zinc-500 font-mono">يدعم العربية / Markdown</span>
+                    </div>
+
+                    <textarea
+                      value={editingContent}
+                      onChange={(e) => setEditingContent(e.target.value)}
+                      rows={4}
+                      dir="auto"
+                      className="w-full bg-zinc-950 border border-zinc-700 focus:border-zinc-300 rounded-xl p-3 text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none leading-relaxed resize-y font-sans transition-colors bidi-auto"
+                      placeholder="اكتب التعديل على السؤال أو الـ Prompt..."
+                    />
+
+                    <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => handleSaveEdit(node.id, true)}
+                          type="button"
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-100 hover:bg-white text-zinc-950 text-xs font-semibold transition-colors shadow-sm"
+                          title="حفظ الـ Prompt وإعادة توليد رد الذكاء الاصطناعي بناءً عليه"
+                        >
+                          <Sparkles className="w-3.5 h-3.5 text-zinc-950" />
+                          <span>حفظ وتوليد الرد مجدداً</span>
+                        </button>
+
+                        <button
+                          onClick={() => handleSaveEdit(node.id, false)}
+                          type="button"
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 text-xs font-medium transition-colors"
+                          title="حفظ التعديل على النص فقط"
+                        >
+                          <Check className="w-3.5 h-3.5 text-zinc-300" />
+                          <span>حفظ فقط</span>
+                        </button>
+                      </div>
+
+                      <button
+                        onClick={() => setEditingNodeId(null)}
+                        type="button"
+                        className="px-3 py-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 text-xs transition-colors"
+                      >
+                        إلغاء
+                      </button>
+                    </div>
+                  </div>
+                ) : node.data.status === 'generating' && !node.data.content ? (
                   <div className="flex items-center gap-2 text-zinc-400 py-2">
                     <Sparkles className="w-4 h-4 animate-spin text-zinc-200" />
-                    <span className="text-xs">Generating response from {node.data.modelUsed || 'Gemini'}...</span>
+                    <span className="text-xs">Generating response from {node.data.modelUsed || 'AI'}...</span>
                   </div>
                 ) : (
-                  <div className="prose-custom">
+                  <div className="prose-custom select-text selectable-text cursor-text" dir="auto">
                     <ReactMarkdown
                       remarkPlugins={[remarkGfm]}
                       components={{
@@ -270,6 +389,7 @@ export const FocusFlowModal: React.FC<FocusFlowModalProps> = ({
             <textarea
               ref={textareaRef}
               rows={2}
+              dir="auto"
               value={replyText}
               onChange={(e) => setReplyText(e.target.value)}
               onKeyDown={(e) => {
@@ -278,9 +398,9 @@ export const FocusFlowModal: React.FC<FocusFlowModalProps> = ({
                   handleSendReply();
                 }
               }}
-              placeholder="Continue this thought flow... (Enter to send, Shift+Enter for newline)"
+              placeholder="اكتب فكرتك لمتابعة المحادثة... Continue thought flow (Enter للإرسال، Shift+Enter لسطر جديد)"
               disabled={isGenerating}
-              className="flex-1 bg-transparent resize-none text-xs sm:text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none leading-relaxed max-h-32"
+              className="flex-1 bg-transparent resize-none text-xs sm:text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none leading-relaxed max-h-32 font-sans bidi-auto"
             />
 
             <button

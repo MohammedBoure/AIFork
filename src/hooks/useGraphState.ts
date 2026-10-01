@@ -397,8 +397,9 @@ export function useGraphState() {
    * Retry generating an error node
    */
   const handleRetryNode = useCallback(
-    async (nodeId: string, overrideModelId?: string) => {
-      const node = nodes.find((n) => n.id === nodeId);
+    async (nodeId: string, overrideModelId?: string, overrideNodes?: ThoughtFlowNode[]) => {
+      const activeNodes = overrideNodes || nodes;
+      const node = activeNodes.find((n) => n.id === nodeId);
       if (!node || isGenerating) return;
 
       const modelId = overrideModelId || node.data.modelUsed || settings.defaultModel;
@@ -426,7 +427,7 @@ export function useGraphState() {
           settings,
           modelId,
           node,
-          nodes,
+          activeNodes,
           (_, fullText) => {
             setNodes((nds) =>
               nds.map((n) =>
@@ -490,6 +491,54 @@ export function useGraphState() {
       }
     },
     [nodes, isGenerating, settings, addToast]
+  );
+
+  /**
+   * Update a node's prompt or text content
+   * Optionally re-runs all dependent assistant child nodes with the updated prompt
+   */
+  const handleUpdateNodeContent = useCallback(
+    async (nodeId: string, newContent: string, regenerateChildren: boolean = false) => {
+      const trimmed = newContent.trim();
+      if (!trimmed) {
+        addToast('error', 'لا يمكن حفظ محتوى فارغ.');
+        return;
+      }
+
+      const updatedNodes = nodes.map((n) =>
+        n.id === nodeId
+          ? {
+              ...n,
+              data: {
+                ...n.data,
+                content: trimmed,
+              },
+            }
+          : n
+      );
+
+      setNodes(updatedNodes);
+
+      if (regenerateChildren) {
+        // Find direct child assistant nodes
+        const childEdges = edges.filter((e) => e.source === nodeId);
+        const childAssistantNodes = updatedNodes.filter(
+          (n) => childEdges.some((e) => e.target === n.id) && n.data.role === 'assistant'
+        );
+
+        if (childAssistantNodes.length > 0) {
+          addToast('info', 'تم تحديث الـ Prompt. جاري توليد الرد بناءً عليه...');
+          for (const childNode of childAssistantNodes) {
+            await handleRetryNode(childNode.id, childNode.data.modelUsed, updatedNodes);
+          }
+        } else {
+          addToast('success', 'تم حفظ الـ Prompt المعدل بنجاح.');
+        }
+      } else {
+        addToast('success', 'تم حفظ التعديل بنجاح.');
+      }
+    },
+    [nodes, edges, handleRetryNode, addToast]
   );
 
   /**
@@ -677,6 +726,7 @@ export function useGraphState() {
     handleDeleteNode,
     handleBatchDelete,
     handleRetryNode,
+    handleUpdateNodeContent,
     handleAutoLayout,
     handleSaveSettings,
     handleLoadGraph,

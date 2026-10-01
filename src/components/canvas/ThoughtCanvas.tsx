@@ -34,6 +34,7 @@ interface ThoughtCanvasProps {
   onDeleteNode: (nodeId: string) => void;
   onInspectNode: (nodeId: string) => void;
   onRetryNode: (nodeId: string) => void;
+  onUpdateNodeContent: (nodeId: string, newContent: string, regenerateChildren?: boolean) => void;
   onAutoLayout: (direction: 'TB' | 'LR') => void;
   layoutDirection: 'TB' | 'LR';
   showMinimap: boolean;
@@ -59,6 +60,7 @@ export const ThoughtCanvas: React.FC<ThoughtCanvasProps> = ({
   onDeleteNode,
   onInspectNode,
   onRetryNode,
+  onUpdateNodeContent,
   onAutoLayout,
   layoutDirection,
   showMinimap,
@@ -121,6 +123,7 @@ export const ThoughtCanvas: React.FC<ThoughtCanvasProps> = ({
       onDeleteNode,
       onInspectNode,
       onRetryNode,
+      onUpdateNodeContent,
       selectedForMergeIds,
       activeParentId,
     }),
@@ -131,6 +134,7 @@ export const ThoughtCanvas: React.FC<ThoughtCanvasProps> = ({
       onDeleteNode,
       onInspectNode,
       onRetryNode,
+      onUpdateNodeContent,
       selectedForMergeIds,
       activeParentId,
     ]
