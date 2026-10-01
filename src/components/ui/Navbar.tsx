@@ -18,6 +18,7 @@ interface NavbarProps {
   activeParentTitle?: string | null;
   activeParentId: string | null;
   hasApiKey: boolean;
+  provider?: string;
   selectedForMergeCount: number;
   onOpenSettings: () => void;
   onOpenExport: () => void;
@@ -34,6 +35,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   activeParentTitle,
   activeParentId,
   hasApiKey,
+  provider = 'openrouter',
   selectedForMergeCount,
   onOpenSettings,
   onOpenExport,
@@ -167,7 +169,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           {hasApiKey ? (
             <Badge variant="secondary" className="px-1.5 py-0 bg-zinc-800 text-white border-zinc-700">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse mr-1 inline-block"></span>
-              Gemini Live
+              {provider === 'openrouter' ? 'OpenRouter • DeepSeek' : 'Gemini Live'}
             </Badge>
           ) : (
             <Badge variant="secondary" className="px-1.5 py-0 bg-zinc-900 text-zinc-400 border-zinc-800">

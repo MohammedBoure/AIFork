@@ -4,7 +4,7 @@ This directory contains visual canvas components powered by `@xyflow/react`.
 
 ## Files
 - `ThoughtCanvas.tsx`: Main React Flow canvas wrapper handling node rendering, background grid dots, minimap, drag-and-drop, right-click context menu events, and batch operations.
-- `CustomThoughtNode.tsx`: Custom DAG node component featuring role badges (`User` / `Gemini AI`), active model tag (`gemini-3.7-flash`, `gemini-2.5-flash`, `gemini-2.5-pro`), markdown formatting, syntax highlighting, Focus View button, error retry controls, and action buttons (`Fork from here`, `Select for Merge`, `Delete`).
+- `CustomThoughtNode.tsx`: Custom DAG node component featuring role badges (`User` / `AI`), active model tag (DeepSeek V3, DeepSeek R1, Gemini 2.5, etc.), markdown formatting, syntax highlighting, Focus View button, adaptive error retry controls, and action buttons (`Fork from here`, `Select for Merge`, `Delete`).
 - `CustomEdge.tsx`: Stylized DAG edge renderer with smoothstep, bezier, and straight routing options, arrow markers, and purple glow for merge paths.
 - `CanvasControls.tsx`: Floating canvas toolbar providing zoom in/out, fit-view, layout orientation toggle (Top-to-Bottom / Left-to-Right), and minimap toggles.
 - `ContextMenu.tsx`: Floating right-click context menu for nodes (fork, focus flow, merge, copy, delete) and empty canvas (genesis thought, auto layout, fit view).

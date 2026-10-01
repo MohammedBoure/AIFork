@@ -4,5 +4,5 @@ This directory contains dialog and modal overlays for graph serialization, start
 
 ## Files
 - `ExportImportModal.tsx`: Enables downloading graphs as `.json`, copying JSON to clipboard, downloading Markdown summaries, and uploading/pasting saved DAGs.
-- `TemplatesModal.tsx`: Provides pre-configured DAG templates (such as "AI Architecture Decision Tree" and "Blank Ideation Canvas") for quick bootstrapping.
+- `TemplatesModal.tsx`: Provides pre-configured DAG templates (such as "DeepSeek R1 vs V3 Architecture Exploration", "AI Architecture Decision Tree", and "Blank Ideation Canvas") for quick bootstrapping.
 - `NodeDetailModal.tsx`: Fullscreen inspector rendering markdown, code snippets, metadata, token consumption, and the strict ancestry path proving parallel branch isolation.

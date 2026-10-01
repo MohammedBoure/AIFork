@@ -206,4 +206,199 @@ Synthesizing conclusions from **Branch A (Serverless Edge)** and **Branch B (Ded
     ],
     edges: [],
   },
+
+  deepseek_reasoning: {
+    version: '1.0.0',
+    title: 'DeepSeek R1 vs V3 Architecture Exploration',
+    description: 'High-speed DeepSeek V3 execution contrasted with DeepSeek R1 chain-of-thought synthesis on OpenRouter.',
+    createdAt: Date.now() - 3600000 * 3,
+    updatedAt: Date.now() - 3600000 * 1,
+    activeParentId: 'ds-merge-synthesis',
+    nodes: [
+      {
+        id: 'ds-root-1',
+        type: 'thought',
+        position: { x: 380, y: 50 },
+        data: {
+          id: 'ds-root-1',
+          role: 'user',
+          content: 'How should we design a globally distributed rate-limiter with 99.999% availability, sub-5ms latency, and strict multi-tenant quotas across 24 edge regions?',
+          parentIds: [],
+          createdAt: Date.now() - 7200000,
+          status: 'idle',
+          branchLabel: 'Core Architecture Question',
+        },
+      },
+      // Branch 1: DeepSeek V3
+      {
+        id: 'ds-branch-v3-user',
+        type: 'thought',
+        position: { x: 60, y: 320 },
+        data: {
+          id: 'ds-branch-v3-user',
+          role: 'user',
+          content: 'Forking Path A (DeepSeek V3): Evaluate Local Token Bucket with asynchronous batch synchronization to regional Redis clusters.',
+          parentIds: ['ds-root-1'],
+          createdAt: Date.now() - 6000000,
+          status: 'idle',
+          branchLabel: 'Path A: Local Token Bucket',
+        },
+      },
+      {
+        id: 'ds-branch-v3-ai',
+        type: 'thought',
+        position: { x: 60, y: 580 },
+        data: {
+          id: 'ds-branch-v3-ai',
+          role: 'assistant',
+          modelUsed: 'deepseek/deepseek-chat',
+          content: `### Branch A: Local Token Bucket with Batch Sync
+
+1. **Ultra-Low Latency (<1ms):**
+   - Decisions are evaluated entirely in local memory using atomic CAS (Compare-And-Swap) operations on thread-local buckets.
+   - Zero synchronous network hops on the critical request path.
+
+2. **Batched Replication:**
+   - Background worker flushes consumed token counts to regional Redis every 100ms.
+   - Reduces central Redis QPS by 95%.
+
+3. **Trade-off:**
+   - Possibility of a ±5% quota burst during rapid multi-region traffic spikes before batch sync reconciles.`,
+          parentIds: ['ds-branch-v3-user'],
+          createdAt: Date.now() - 5400000,
+          status: 'idle',
+          branchLabel: 'DeepSeek V3 Analysis',
+          tokens: { promptTokens: 130, candidatesTokens: 210, totalTokens: 340 },
+        },
+      },
+      // Branch 2: DeepSeek R1
+      {
+        id: 'ds-branch-r1-user',
+        type: 'thought',
+        position: { x: 700, y: 320 },
+        data: {
+          id: 'ds-branch-r1-user',
+          role: 'user',
+          content: 'Forking Path B (DeepSeek R1): Evaluate Sliding Window Log with CRDT (Conflict-free Replicated Data Types) across Edge PoPs.',
+          parentIds: ['ds-root-1'],
+          createdAt: Date.now() - 4800000,
+          status: 'idle',
+          branchLabel: 'Path B: CRDT Sliding Log',
+        },
+      },
+      {
+        id: 'ds-branch-r1-ai',
+        type: 'thought',
+        position: { x: 700, y: 580 },
+        data: {
+          id: 'ds-branch-r1-ai',
+          role: 'assistant',
+          modelUsed: 'deepseek/deepseek-r1',
+          content: `> **DeepSeek Reasoning Process:**
+> Rigorously verifying CRDT convergence properties under net-split conditions. Evaluating PN-Counters vs state-based G-Counters.
+
+### Branch B: CRDT Sliding Window Evaluation
+
+1. **Mathematical Consistency Guarantee:**
+   - Positive-Negative Counter (PN-Counter) CRDTs guarantee eventual consistency even through inter-region fiber cuts.
+   - Deterministic merge algorithm without locks or two-phase commit overhead.
+
+2. **Fault Tolerance:**
+   - Nodes can make local updates during partitions; state converges monotonically upon reconnection.
+
+3. **Trade-off:**
+   - Higher memory overhead per tenant to maintain vector clock timestamps.`,
+          parentIds: ['ds-branch-r1-user'],
+          createdAt: Date.now() - 4200000,
+          status: 'idle',
+          branchLabel: 'DeepSeek R1 Reasoning',
+          tokens: { promptTokens: 165, candidatesTokens: 245, totalTokens: 410 },
+        },
+      },
+      // Merge Synthesis Node
+      {
+        id: 'ds-merge-synthesis',
+        type: 'thought',
+        position: { x: 380, y: 920 },
+        data: {
+          id: 'ds-merge-synthesis',
+          role: 'assistant',
+          modelUsed: 'deepseek/deepseek-r1',
+          isMergeNode: true,
+          content: `> **DeepSeek Reasoning Process:**
+> Synthesizing high-speed local token evaluation with mathematically verified CRDT consistency. Constructing two-tier tiered limiter specification.
+
+### 🔀 Unified Synthesis: Two-Tier Adaptive Limiter
+
+Synthesizing **Branch A (DeepSeek V3 Local Bucket)** and **Branch B (DeepSeek R1 CRDT Log)**:
+
+1. **The Optimal Architectural Resolution:**
+   - **Tier 1 (Fast Path):** Local token bucket handles 99% of requests in <1ms without network overhead.
+   - **Tier 2 (Global Sync):** CRDT delta synchronization propagates bucket allocations between edge nodes every 50ms without locking.
+
+2. **Comparative Matrix:**
+   | Metric | Local Bucket (V3) | CRDT Log (R1) | Hybrid Synthesis |
+   | :--- | :--- | :--- | :--- |
+   | **Path Latency** | < 1ms | 8–15ms | **< 1.2ms** |
+   | **Partition Safety** | Drift risks | Mathematically exact | **Monotonic convergence** |
+   | **Compute Cost** | Lowest | Medium | **Optimized ($0.04/M req)** |
+
+3. **Actionable Implementation Steps:**
+   - Implement Rust WASM module for local Token Bucket evaluation inside edge workers.
+   - Sync counter deltas via OpenRouter-monitored telemetry pipeline.
+
+> *Synthesized via OpenRouter • deepseek/deepseek-r1*`,
+          parentIds: ['ds-branch-v3-ai', 'ds-branch-r1-ai'],
+          createdAt: Date.now() - 3600000,
+          status: 'idle',
+          branchLabel: 'DeepSeek R1 Synthesis',
+          tokens: { promptTokens: 420, candidatesTokens: 390, totalTokens: 810 },
+        },
+      },
+    ],
+    edges: [
+      {
+        id: 'e-ds-root-a',
+        source: 'ds-root-1',
+        target: 'ds-branch-v3-user',
+        type: 'smoothstep',
+        animated: true,
+      },
+      {
+        id: 'e-ds-v3-user-ai',
+        source: 'ds-branch-v3-user',
+        target: 'ds-branch-v3-ai',
+        type: 'smoothstep',
+      },
+      {
+        id: 'e-ds-root-b',
+        source: 'ds-root-1',
+        target: 'ds-branch-r1-user',
+        type: 'smoothstep',
+        animated: true,
+      },
+      {
+        id: 'e-ds-r1-user-ai',
+        source: 'ds-branch-r1-user',
+        target: 'ds-branch-r1-ai',
+        type: 'smoothstep',
+      },
+      {
+        id: 'e-ds-merge-a',
+        source: 'ds-branch-v3-ai',
+        target: 'ds-merge-synthesis',
+        type: 'smoothstep',
+        animated: true,
+        style: { stroke: '#ffffff', strokeWidth: 2 },
+      },
+      {
+        id: 'e-ds-merge-b',
+        source: 'ds-branch-r1-ai',
+        target: 'ds-merge-synthesis',
+        type: 'smoothstep',
+        animated: true,
+        style: { stroke: '#ffffff', strokeWidth: 2 },
+      },
+    ],
+  },
 };

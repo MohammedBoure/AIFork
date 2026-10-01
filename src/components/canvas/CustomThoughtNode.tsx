@@ -162,14 +162,20 @@ export const CustomThoughtNode: React.FC<NodeProps> = memo(({ id, data, selected
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  onRetryNode(id, 'gemini-2.5-flash');
+                  const isDeepSeek = nodeData.modelUsed?.includes('deepseek') || nodeData.modelUsed?.includes('/');
+                  const fastModel = isDeepSeek ? 'deepseek/deepseek-chat' : 'gemini-2.5-flash';
+                  onRetryNode(id, fastModel);
                 }}
                 type="button"
                 className="flex items-center gap-1 px-2.5 py-1 rounded bg-zinc-100 hover:bg-white text-zinc-950 text-[11px] font-semibold transition-colors shadow-sm"
-                title="Retry using the high-availability Gemini 2.5 Flash model"
+                title="Retry using high-availability fast model"
               >
                 <Sparkles className="w-3 h-3 text-zinc-950" />
-                <span>Retry with 2.5 Flash</span>
+                <span>
+                  {nodeData.modelUsed?.includes('deepseek') || nodeData.modelUsed?.includes('/')
+                    ? 'Retry with DeepSeek V3'
+                    : 'Retry with 2.5 Flash'}
+                </span>
               </button>
 
               <button

@@ -7,9 +7,11 @@ const STORAGE_KEYS = {
 };
 
 export const DEFAULT_SETTINGS: AppSettings = {
+  provider: 'openrouter',
+  openRouterApiKey: '',
   apiKey: '',
-  defaultModel: 'gemini-2.5-flash',
-  defaultMergeModel: 'gemini-2.5-pro',
+  defaultModel: 'deepseek/deepseek-chat',
+  defaultMergeModel: 'deepseek/deepseek-r1',
   temperature: 0.7,
   maxOutputTokens: 2048,
   systemInstruction: 'You are an insightful thinking partner in a visual non-linear thought graph. Provide clear, structured, well-formatted markdown responses with concrete trade-offs, code examples where appropriate, and actionable recommendations.',
@@ -23,7 +25,13 @@ export function loadSettings(): AppSettings {
   try {
     const raw = localStorage.getItem(STORAGE_KEYS.SETTINGS);
     if (!raw) return DEFAULT_SETTINGS;
-    return { ...DEFAULT_SETTINGS, ...JSON.parse(raw) };
+    const parsed = JSON.parse(raw);
+    return {
+      ...DEFAULT_SETTINGS,
+      ...parsed,
+      provider: parsed.provider || (parsed.openRouterApiKey ? 'openrouter' : parsed.apiKey ? 'gemini' : 'openrouter'),
+      openRouterApiKey: parsed.openRouterApiKey || '',
+    };
   } catch (err) {
     console.error('Failed to load settings from localStorage:', err);
     return DEFAULT_SETTINGS;

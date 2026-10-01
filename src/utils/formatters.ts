@@ -37,6 +37,42 @@ export function getModelBadgeInfo(modelId?: string): {
 
   const lower = modelId.toLowerCase();
 
+  // DeepSeek R1 Reasoning
+  if (lower.includes('deepseek') && (lower.includes('r1') || lower.includes('reasoning'))) {
+    return {
+      label: 'DeepSeek R1',
+      badgeClass: 'bg-zinc-100 text-zinc-950 border-zinc-200 shadow-sm font-semibold',
+      dotClass: 'bg-zinc-950 animate-pulse',
+    };
+  }
+
+  // DeepSeek V3 / Chat
+  if (lower.includes('deepseek')) {
+    return {
+      label: lower.includes('free') ? 'DeepSeek (Free)' : 'DeepSeek V3',
+      badgeClass: 'bg-zinc-900 text-zinc-100 border-zinc-700 shadow-sm font-medium',
+      dotClass: 'bg-zinc-100',
+    };
+  }
+
+  // Claude / Anthropic
+  if (lower.includes('claude')) {
+    return {
+      label: 'Claude 3.5',
+      badgeClass: 'bg-zinc-900 text-zinc-200 border-zinc-700 shadow-sm',
+      dotClass: 'bg-zinc-300',
+    };
+  }
+
+  // Meta Llama
+  if (lower.includes('llama')) {
+    return {
+      label: 'Llama 3.3',
+      badgeClass: 'bg-zinc-900 text-zinc-200 border-zinc-700 shadow-sm',
+      dotClass: 'bg-zinc-400',
+    };
+  }
+
   if (lower.includes('3.7') || lower.includes('pro')) {
     return {
       label: modelId,
@@ -62,7 +98,7 @@ export function getModelBadgeInfo(modelId?: string): {
   }
 
   return {
-    label: modelId,
+    label: modelId.includes('/') ? modelId.split('/')[1] : modelId,
     badgeClass: 'bg-zinc-900 text-zinc-300 border-zinc-800',
     dotClass: 'bg-zinc-400',
   };

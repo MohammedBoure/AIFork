@@ -5,8 +5,8 @@ This is the primary application source directory for ThoughtGraph AI.
 ## Architecture & Subdirectories
 - `components/`: UI components categorized into `canvas`, `prompt`, `settings`, `modals`, and `ui`.
 - `hooks/`: State management hooks (`useGraphState.ts`) coordinating nodes, branches, and API integration.
-- `services/`: External API calls (`gemini.ts`), persistence & serialization (`storage.ts`), and pre-built DAG templates (`mockData.ts`).
-- `types/`: TypeScript definitions (`graph.ts`) defining `ThoughtNodeData`, graph states, and Gemini payloads.
+- `services/`: Unified AI router (`aiRouter.ts`), OpenRouter & DeepSeek client (`openrouter.ts`), Google Gemini client (`gemini.ts`), persistence & serialization (`storage.ts`), and pre-built DAG templates (`mockData.ts`).
+- `types/`: TypeScript definitions (`graph.ts`) defining `ThoughtNodeData`, graph states, provider configurations, and chat payloads.
 - `utils/`: Algorithmic modules for branch context resolution (`contextResolver.ts`), DAG auto-layout (`dagLayout.ts`), and formatting helpers (`formatters.ts`).
 
 ## Top-Level Files

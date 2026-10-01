@@ -28,20 +28,20 @@ import {
 import { STARTER_TEMPLATES } from '../services/mockData';
 import { getLayoutedElements, calculateChildPosition } from '../utils/dagLayout';
 import {
-  resolveGeminiContext,
-  buildMergeSynthesisPrompt,
-} from '../utils/contextResolver';
-import {
-  generateGeminiResponse,
-  DEFAULT_PRESET_MODELS,
-  fetchAvailableGeminiModels,
-} from '../services/gemini';
+  executeAIBranchCompletion,
+  executeAIMergeSynthesis,
+  executeAIRetry,
+  getPresetModelsForProvider,
+  fetchRemoteModelsForProvider,
+} from '../services/aiRouter';
 import type { ToastMessage } from '../components/ui/Toast';
 
 export function useGraphState() {
   // App settings state
   const [settings, setSettings] = useState<AppSettings>(() => loadSettings());
-  const [availableModels, setAvailableModels] = useState<ModelOption[]>(DEFAULT_PRESET_MODELS);
+  const [availableModels, setAvailableModels] = useState<ModelOption[]>(() =>
+    getPresetModelsForProvider(settings.provider)
+  );
 
   // Initialize graph from saved state or starter template
   const initialData = loadGraphState() || STARTER_TEMPLATES.ai_architecture;
@@ -83,16 +83,15 @@ export function useGraphState() {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
 
-  // Proactively fetch models on initial mount if API key is present
+  // Proactively fetch models on initial mount or when credentials/provider change
+  const { provider, apiKey, openRouterApiKey } = settings;
   useEffect(() => {
-    if (settings.apiKey) {
-      fetchAvailableGeminiModels(settings.apiKey)
-        .then((models) => {
-          if (models.length > 0) setAvailableModels(models);
-        })
-        .catch(() => {});
-    }
-  }, [settings.apiKey]);
+    fetchRemoteModelsForProvider(provider, apiKey, openRouterApiKey)
+      .then((models) => {
+        if (models && models.length > 0) setAvailableModels(models);
+      })
+      .catch(() => {});
+  }, [provider, apiKey, openRouterApiKey]);
 
   // Persist graph changes to localStorage
   useEffect(() => {
@@ -201,8 +200,11 @@ export function useGraphState() {
   const handleSaveSettings = useCallback((newSettings: AppSettings) => {
     setSettings(newSettings);
     saveSettings(newSettings);
+    if (newSettings.provider !== settings.provider) {
+      setAvailableModels(getPresetModelsForProvider(newSettings.provider));
+    }
     addToast('success', 'Settings saved successfully.');
-  }, [addToast]);
+  }, [settings.provider, addToast]);
 
   // Load a template or imported graph with deep copy
   const handleLoadGraph = useCallback((graph: SerializedGraph) => {
@@ -309,16 +311,12 @@ export function useGraphState() {
       setFocusNodeId(assistantNodeId);
 
       try {
-        const contextMessages = resolveGeminiContext(userNodeId, [...nodes, userNode]);
-
-        const result = await generateGeminiResponse({
-          apiKey: settings.apiKey,
-          model: modelId,
-          messages: contextMessages,
-          systemInstruction: settings.systemInstruction,
-          temperature: settings.temperature,
-          maxOutputTokens: settings.maxOutputTokens,
-          onStreamChunk: (_, fullText) => {
+        const result = await executeAIBranchCompletion(
+          settings,
+          modelId,
+          userNodeId,
+          [...nodes, userNode],
+          (_, fullText) => {
             setNodes((nds) =>
               nds.map((n) =>
                 n.id === assistantNodeId
@@ -332,8 +330,8 @@ export function useGraphState() {
                   : n
               )
             );
-          },
-        });
+          }
+        );
 
         const actualModel = result.actualModelUsed || modelId;
 
@@ -424,19 +422,12 @@ export function useGraphState() {
       );
 
       try {
-        const parentId = node.data.parentIds?.[0];
-        const contextMessages = parentId
-          ? resolveGeminiContext(parentId, nodes)
-          : [{ role: 'user' as const, parts: [{ text: node.data.content || 'Continue' }] }];
-
-        const result = await generateGeminiResponse({
-          apiKey: settings.apiKey,
-          model: modelId,
-          messages: contextMessages,
-          systemInstruction: settings.systemInstruction,
-          temperature: settings.temperature,
-          maxOutputTokens: settings.maxOutputTokens,
-          onStreamChunk: (_, fullText) => {
+        const result = await executeAIRetry(
+          settings,
+          modelId,
+          node,
+          nodes,
+          (_, fullText) => {
             setNodes((nds) =>
               nds.map((n) =>
                 n.id === nodeId
@@ -450,8 +441,8 @@ export function useGraphState() {
                   : n
               )
             );
-          },
-        });
+          }
+        );
 
         const actualModel = result.actualModelUsed || modelId;
 
@@ -515,14 +506,6 @@ export function useGraphState() {
       const mergeNodeId = `node-merge-${timestamp}`;
 
       const selectedNodes = nodes.filter((n) => selectedForMergeIds.includes(n.id));
-      const nodesMap = new Map(nodes.map((n) => [n.id, n]));
-
-      const { messages } = buildMergeSynthesisPrompt(
-        selectedNodes,
-        nodesMap,
-        synthesisPrompt
-      );
-
       const mergePos = calculateChildPosition(selectedForMergeIds, nodes, edges);
 
       const mergeNode: ThoughtFlowNode = {
@@ -559,14 +542,13 @@ export function useGraphState() {
       setSelectedForMergeIds([]);
 
       try {
-        const result = await generateGeminiResponse({
-          apiKey: settings.apiKey,
-          model: modelId,
-          messages,
-          systemInstruction: settings.systemInstruction,
-          temperature: settings.temperature,
-          maxOutputTokens: settings.maxOutputTokens,
-          onStreamChunk: (_, fullText) => {
+        const result = await executeAIMergeSynthesis(
+          settings,
+          modelId,
+          selectedNodes,
+          nodes,
+          synthesisPrompt,
+          (_, fullText) => {
             setNodes((nds) =>
               nds.map((n) =>
                 n.id === mergeNodeId
@@ -580,8 +562,10 @@ export function useGraphState() {
                   : n
               )
             );
-          },
-        });
+          }
+        );
+
+        const actualModel = result.actualModelUsed || modelId;
 
         setNodes((nds) =>
           nds.map((n) =>
@@ -591,6 +575,7 @@ export function useGraphState() {
                   data: {
                     ...n.data,
                     content: result.text,
+                    modelUsed: actualModel,
                     status: 'idle',
                     tokens: result.tokens,
                   },
@@ -599,7 +584,11 @@ export function useGraphState() {
           )
         );
 
-        addToast('success', `Merged ${selectedNodes.length} branches successfully using ${modelId}!`);
+        if (result.fallbackNotice) {
+          addToast('info', result.fallbackNotice);
+        }
+
+        addToast('success', `Merged ${selectedNodes.length} branches successfully using ${actualModel}!`);
 
         if (settings.autoLayoutOnAdd) {
           setTimeout(() => {

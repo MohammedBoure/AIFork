@@ -37,6 +37,11 @@ export type ThoughtFlowEdge = Edge<{
 }>;
 
 /**
+ * Supported AI engine providers
+ */
+export type AIProvider = 'openrouter' | 'gemini';
+
+/**
  * Model description and capabilities
  */
 export interface ModelOption {
@@ -47,13 +52,16 @@ export interface ModelOption {
   contextWindow?: string;
   category: 'fast' | 'pro' | 'experimental' | 'custom';
   recommendedFor?: 'chat' | 'fork' | 'merge' | 'all';
+  provider?: AIProvider | 'custom';
 }
 
 /**
  * User application settings
  */
 export interface AppSettings {
-  apiKey: string;
+  provider: AIProvider;
+  openRouterApiKey: string;
+  apiKey: string; // Google Gemini API key
   defaultModel: string;
   defaultMergeModel: string;
   temperature: number;
@@ -81,11 +89,34 @@ export interface SerializedGraph {
 }
 
 /**
+ * Standard OpenAI/OpenRouter chat message format
+ */
+export interface OpenRouterChatMessage {
+  role: 'system' | 'user' | 'assistant';
+  content: string;
+}
+
+/**
  * Message payload format for Gemini API
  */
 export interface GeminiChatMessage {
   role: 'user' | 'model';
   parts: Array<{ text: string }>;
+}
+
+/**
+ * Unified response format across AI providers
+ */
+export interface GenerateAIResult {
+  text: string;
+  actualModelUsed?: string;
+  fallbackNotice?: string;
+  reasoningContent?: string;
+  tokens?: {
+    promptTokens?: number;
+    candidatesTokens?: number;
+    totalTokens?: number;
+  };
 }
 
 /**

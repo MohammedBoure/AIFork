@@ -77,7 +77,12 @@ export function ThoughtGraphApp() {
         edgeCount={edges.length}
         activeParentTitle={activeParentTitle}
         activeParentId={activeParentId}
-        hasApiKey={Boolean(settings.apiKey && settings.apiKey.trim().length > 0)}
+        provider={settings.provider}
+        hasApiKey={Boolean(
+          settings.provider === 'openrouter'
+            ? settings.openRouterApiKey && settings.openRouterApiKey.trim().length > 0
+            : settings.apiKey && settings.apiKey.trim().length > 0
+        )}
         selectedForMergeCount={selectedForMergeIds.length}
         onOpenSettings={() => setIsSettingsOpen(true)}
         onOpenExport={() => setIsExportOpen(true)}

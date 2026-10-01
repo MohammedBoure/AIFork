@@ -1,4 +1,4 @@
-import type { ThoughtFlowNode, GeminiChatMessage } from '../types/graph';
+import type { ThoughtFlowNode, GeminiChatMessage, OpenRouterChatMessage } from '../types/graph';
 
 /**
  * Traverses upwards through parent references to get the strict branch history leading to targetNodeId.
@@ -30,6 +30,37 @@ export function getBranchAncestors(
   traverse(targetNodeId);
 
   return path.sort((a, b) => a.data.createdAt - b.data.createdAt);
+}
+
+/**
+ * Converts a branch ancestor chain into standard OpenRouter/OpenAI chat messages.
+ */
+export function resolveOpenRouterContext(
+  targetNodeId: string,
+  nodes: ThoughtFlowNode[]
+): OpenRouterChatMessage[] {
+  const nodesMap = new Map(nodes.map((n) => [n.id, n]));
+  const branchNodes = getBranchAncestors(targetNodeId, nodesMap);
+
+  const messages: OpenRouterChatMessage[] = [];
+
+  for (const node of branchNodes) {
+    const role: 'user' | 'assistant' = node.data.role === 'assistant' ? 'assistant' : 'user';
+    const content = node.data.content.trim();
+
+    if (!content) continue;
+
+    messages.push({
+      role,
+      content,
+    });
+  }
+
+  if (messages.length === 0) {
+    messages.push({ role: 'user', content: 'Begin exploration' });
+  }
+
+  return messages;
 }
 
 /**
@@ -119,6 +150,26 @@ Please provide:
       },
     ],
     promptText,
+  };
+}
+
+/**
+ * Builds multi-branch synthesis prompt formatted for OpenRouter / DeepSeek.
+ */
+export function buildOpenRouterMergePrompt(
+  selectedNodes: ThoughtFlowNode[],
+  nodesMap: Map<string, ThoughtFlowNode>,
+  userInstruction?: string
+): { messages: OpenRouterChatMessage[]; promptText: string } {
+  const geminiPrompt = buildMergeSynthesisPrompt(selectedNodes, nodesMap, userInstruction);
+  return {
+    messages: [
+      {
+        role: 'user',
+        content: geminiPrompt.promptText,
+      },
+    ],
+    promptText: geminiPrompt.promptText,
   };
 }
 
