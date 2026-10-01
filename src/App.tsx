@@ -8,6 +8,7 @@ import { SettingsDrawer } from './components/settings/SettingsDrawer';
 import { ExportImportModal } from './components/modals/ExportImportModal';
 import { TemplatesModal } from './components/modals/TemplatesModal';
 import { NodeDetailModal } from './components/modals/NodeDetailModal';
+import { FocusFlowModal } from './components/focus/FocusFlowModal';
 import { ToastContainer } from './components/ui/Toast';
 
 export function ThoughtGraphApp() {
@@ -29,6 +30,12 @@ export function ThoughtGraphApp() {
     toasts,
     dismissToast,
 
+    // Focus Flow
+    focusNodeId,
+    isFocusFlowOpen,
+    handleOpenFocusFlow,
+    handleCloseFocusFlow,
+
     // Modals
     isSettingsOpen,
     setIsSettingsOpen,
@@ -47,6 +54,8 @@ export function ThoughtGraphApp() {
     handleToggleMergeSelect,
     handleClearMergeSelection,
     handleDeleteNode,
+    handleBatchDelete,
+    handleRetryNode,
     handleAutoLayout,
     handleSaveSettings,
     handleLoadGraph,
@@ -61,12 +70,13 @@ export function ThoughtGraphApp() {
   );
 
   return (
-    <div className="flex flex-col w-screen h-screen overflow-hidden bg-slate-950 text-slate-100 select-none">
+    <div className="flex flex-col w-screen h-screen overflow-hidden bg-black text-zinc-100 select-none">
       {/* Top Navigation */}
       <Navbar
         nodeCount={nodes.length}
         edgeCount={edges.length}
         activeParentTitle={activeParentTitle}
+        activeParentId={activeParentId}
         hasApiKey={Boolean(settings.apiKey && settings.apiKey.trim().length > 0)}
         selectedForMergeCount={selectedForMergeIds.length}
         onOpenSettings={() => setIsSettingsOpen(true)}
@@ -75,10 +85,11 @@ export function ThoughtGraphApp() {
         onAutoLayout={() => handleAutoLayout(layoutDirection)}
         onResetCanvas={handleResetCanvas}
         onOpenMergeModal={() => setIsMergeModalOpen(true)}
+        onOpenFocusFlow={handleOpenFocusFlow}
       />
 
       {/* Main Interactive DAG Canvas */}
-      <main className="flex-1 relative overflow-hidden">
+      <main className="flex-1 relative overflow-hidden bg-black">
         <ThoughtCanvas
           nodes={nodes}
           edges={edges}
@@ -88,15 +99,20 @@ export function ThoughtGraphApp() {
           activeParentId={activeParentId}
           selectedForMergeIds={selectedForMergeIds}
           onForkNode={handleForkNode}
+          onOpenFocusFlow={handleOpenFocusFlow}
           onToggleMergeSelect={handleToggleMergeSelect}
           onDeleteNode={handleDeleteNode}
           onInspectNode={setInspectedNodeId}
+          onRetryNode={handleRetryNode}
           onAutoLayout={handleAutoLayout}
           layoutDirection={layoutDirection}
           showMinimap={showMinimap}
           onToggleMinimap={() => setShowMinimap(!showMinimap)}
           onOpenMergeModal={() => setIsMergeModalOpen(true)}
           onClearMergeSelection={handleClearMergeSelection}
+          onNewGenesisThought={handleClearParent}
+          onOpenTemplates={() => setIsTemplatesOpen(true)}
+          onBatchDelete={handleBatchDelete}
         />
 
         {/* Floating Fork & Ideation Prompt Bar */}
@@ -110,6 +126,18 @@ export function ThoughtGraphApp() {
           defaultModel={settings.defaultModel}
         />
       </main>
+
+      {/* Focus Flow / Full View as Conversation Modal */}
+      <FocusFlowModal
+        isOpen={isFocusFlowOpen}
+        onClose={handleCloseFocusFlow}
+        targetNodeId={focusNodeId}
+        nodes={nodes}
+        onReplyInFlow={handleAddThought}
+        isGenerating={isGenerating}
+        availableModels={availableModels}
+        defaultModel={settings.defaultModel}
+      />
 
       {/* Multi-Branch Synthesis Modal */}
       <MergeModal

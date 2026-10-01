@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useCallback } from 'react';
 import {
   ReactFlow,
   Background,
@@ -11,12 +11,14 @@ import type {
   OnEdgesChange,
   OnConnect,
 } from '@xyflow/react';
-import type { ThoughtFlowNode, ThoughtFlowEdge } from '../../types/graph';
+import type { ThoughtFlowNode, ThoughtFlowEdge, ContextMenuState } from '../../types/graph';
 import { CustomThoughtNode } from './CustomThoughtNode';
 import { CustomEdge } from './CustomEdge';
 import { CanvasControls } from './CanvasControls';
 import { NodeActionsProvider } from './NodeActionsContext';
-import { Merge, X } from 'lucide-react';
+import { ContextMenu } from './ContextMenu';
+import { BatchActionBar } from './BatchActionBar';
+import { copyToClipboard } from '../../utils/formatters';
 
 interface ThoughtCanvasProps {
   nodes: ThoughtFlowNode[];
@@ -27,15 +29,20 @@ interface ThoughtCanvasProps {
   activeParentId: string | null;
   selectedForMergeIds: string[];
   onForkNode: (nodeId: string) => void;
+  onOpenFocusFlow: (nodeId: string) => void;
   onToggleMergeSelect: (nodeId: string) => void;
   onDeleteNode: (nodeId: string) => void;
   onInspectNode: (nodeId: string) => void;
+  onRetryNode: (nodeId: string) => void;
   onAutoLayout: (direction: 'TB' | 'LR') => void;
   layoutDirection: 'TB' | 'LR';
   showMinimap: boolean;
   onToggleMinimap: () => void;
   onOpenMergeModal: () => void;
   onClearMergeSelection: () => void;
+  onNewGenesisThought: () => void;
+  onOpenTemplates: () => void;
+  onBatchDelete: (nodeIds: string[]) => void;
 }
 
 export const ThoughtCanvas: React.FC<ThoughtCanvasProps> = ({
@@ -47,16 +54,35 @@ export const ThoughtCanvas: React.FC<ThoughtCanvasProps> = ({
   activeParentId,
   selectedForMergeIds,
   onForkNode,
+  onOpenFocusFlow,
   onToggleMergeSelect,
   onDeleteNode,
   onInspectNode,
+  onRetryNode,
   onAutoLayout,
   layoutDirection,
   showMinimap,
   onToggleMinimap,
   onOpenMergeModal,
   onClearMergeSelection,
+  onNewGenesisThought,
+  onOpenTemplates,
+  onBatchDelete,
 }) => {
+  // Context Menu State
+  const [contextMenu, setContextMenu] = useState<ContextMenuState>({
+    isOpen: false,
+    x: 0,
+    y: 0,
+  });
+
+  // Track multi-selected nodes from React Flow
+  const multiSelectedNodeIds = useMemo(() => {
+    const selected = nodes.filter((n) => n.selected).map((n) => n.id);
+    // Combine with selectedForMergeIds if any
+    return Array.from(new Set([...selected, ...selectedForMergeIds]));
+  }, [nodes, selectedForMergeIds]);
+
   // Static node types object
   const nodeTypes = useMemo(
     () => ({
@@ -81,7 +107,7 @@ export const ThoughtCanvas: React.FC<ThoughtCanvasProps> = ({
         type: MarkerType.ArrowClosed,
         width: 14,
         height: 14,
-        color: '#3b82f6',
+        color: '#71717a',
       },
     }),
     []
@@ -90,25 +116,64 @@ export const ThoughtCanvas: React.FC<ThoughtCanvasProps> = ({
   const actionsContextValue = useMemo(
     () => ({
       onFork: onForkNode,
+      onOpenFocusFlow,
       onToggleMergeSelect,
       onDeleteNode,
       onInspectNode,
+      onRetryNode,
       selectedForMergeIds,
       activeParentId,
     }),
     [
       onForkNode,
+      onOpenFocusFlow,
       onToggleMergeSelect,
       onDeleteNode,
       onInspectNode,
+      onRetryNode,
       selectedForMergeIds,
       activeParentId,
     ]
   );
 
+  // Right-click on a node
+  const handleNodeContextMenu = useCallback(
+    (e: React.MouseEvent, node: ThoughtFlowNode) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setContextMenu({
+        isOpen: true,
+        x: e.clientX,
+        y: e.clientY,
+        nodeId: node.id,
+      });
+    },
+    []
+  );
+
+  // Right-click on empty canvas pane
+  const handlePaneContextMenu = useCallback((e: React.MouseEvent | MouseEvent) => {
+    e.preventDefault();
+    setContextMenu({
+      isOpen: true,
+      x: e.clientX,
+      y: e.clientY,
+    });
+  }, []);
+
+  const handleCopyNodeContent = useCallback(
+    (nodeId: string) => {
+      const node = nodes.find((n) => n.id === nodeId);
+      if (node) {
+        copyToClipboard(node.data.content);
+      }
+    },
+    [nodes]
+  );
+
   return (
     <NodeActionsProvider value={actionsContextValue}>
-      <div className="relative w-full h-[calc(100vh-3.5rem)] overflow-hidden bg-slate-950">
+      <div className="relative w-full h-[calc(100vh-3.5rem)] overflow-hidden bg-black select-none">
         <ReactFlow
           nodes={nodes}
           edges={edges}
@@ -121,30 +186,36 @@ export const ThoughtCanvas: React.FC<ThoughtCanvasProps> = ({
           fitView
           minZoom={0.15}
           maxZoom={2}
-          proOptions={{ hideAttribution: true }}
+          onNodeContextMenu={handleNodeContextMenu}
+          onPaneContextMenu={handlePaneContextMenu}
+          selectionOnDrag={true}
+          panOnDrag={[1, 2]} // Pan with middle button or right drag, box select with left drag or shift+left
         >
           <Background
             variant={BackgroundVariant.Dots}
             gap={24}
             size={1.5}
-            color="#1e293b"
+            color="#27272a"
           />
 
           {showMinimap && (
             <MiniMap
               zoomable
               pannable
-              nodeStrokeWidth={3}
+              nodeStrokeWidth={2}
               nodeColor={(node) => {
                 const data = node.data as { role?: string; isMergeNode?: boolean };
                 if (data?.isMergeNode) return '#a855f7';
-                return data?.role === 'user' ? '#3b82f6' : '#8b5cf6';
+                return data?.role === 'user' ? '#e4e4e7' : '#71717a';
               }}
-              maskColor="rgba(8, 12, 20, 0.7)"
+              maskColor="rgba(9, 9, 11, 0.8)"
               style={{
                 position: 'absolute',
                 bottom: 24,
                 right: 24,
+                border: '1px solid #27272a',
+                borderRadius: '12px',
+                backgroundColor: '#09090b',
               }}
             />
           )}
@@ -157,34 +228,35 @@ export const ThoughtCanvas: React.FC<ThoughtCanvasProps> = ({
           onToggleMinimap={onToggleMinimap}
         />
 
-        {selectedForMergeIds.length > 0 && (
-          <div className="absolute top-4 right-4 z-30 flex items-center gap-2 bg-slate-900/95 border border-purple-500/40 rounded-xl p-2 shadow-2xl backdrop-blur-xl animate-in slide-in-from-top duration-200">
-            <div className="flex items-center gap-2 px-2 text-xs">
-              <span className="w-2 h-2 rounded-full bg-purple-400 animate-pulse"></span>
-              <span className="text-purple-200 font-medium">
-                {selectedForMergeIds.length} {selectedForMergeIds.length === 1 ? 'branch' : 'branches'} staged for Merge
-              </span>
-            </div>
-
-            <button
-              onClick={onOpenMergeModal}
-              disabled={selectedForMergeIds.length < 2}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-medium shadow-md shadow-purple-900/40 transition-all"
-              title={selectedForMergeIds.length < 2 ? 'Select at least 2 branches to merge' : 'Open synthesis dialog'}
-            >
-              <Merge className="w-3.5 h-3.5" />
-              <span>{selectedForMergeIds.length < 2 ? 'Pick 1 more' : 'Synthesize'}</span>
-            </button>
-
-            <button
-              onClick={onClearMergeSelection}
-              className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition-colors"
-              title="Clear merge selection"
-            >
-              <X className="w-3.5 h-3.5" />
-            </button>
-          </div>
+        {/* Batch Action Dock for Multi-Selection */}
+        {multiSelectedNodeIds.length >= 2 && (
+          <BatchActionBar
+            selectedNodeIds={multiSelectedNodeIds}
+            nodes={nodes}
+            onOpenMergeModal={onOpenMergeModal}
+            onBatchDelete={onBatchDelete}
+            onClearSelection={onClearMergeSelection}
+          />
         )}
+
+        {/* Right-Click Context Menu */}
+        <ContextMenu
+          menuState={contextMenu}
+          onClose={() => setContextMenu((prev) => ({ ...prev, isOpen: false }))}
+          onForkNode={onForkNode}
+          onOpenFocusFlow={onOpenFocusFlow}
+          onToggleMergeSelect={onToggleMergeSelect}
+          onCopyNodeContent={handleCopyNodeContent}
+          onInspectNode={onInspectNode}
+          onDeleteNode={onDeleteNode}
+          onNewGenesisThought={onNewGenesisThought}
+          onAutoLayout={onAutoLayout}
+          onFitView={() => onAutoLayout(layoutDirection)}
+          onOpenTemplates={onOpenTemplates}
+          isSelectedForMerge={
+            Boolean(contextMenu.nodeId && selectedForMergeIds.includes(contextMenu.nodeId))
+          }
+        />
       </div>
     </NodeActionsProvider>
   );

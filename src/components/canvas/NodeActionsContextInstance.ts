@@ -2,9 +2,11 @@ import { createContext } from 'react';
 
 export interface NodeActionsContextValue {
   onFork: (nodeId: string) => void;
+  onOpenFocusFlow: (nodeId: string) => void;
   onToggleMergeSelect: (nodeId: string) => void;
   onDeleteNode: (nodeId: string) => void;
   onInspectNode: (nodeId: string) => void;
+  onRetryNode: (nodeId: string, overrideModelId?: string) => void;
   selectedForMergeIds: string[];
   activeParentId: string | null;
 }

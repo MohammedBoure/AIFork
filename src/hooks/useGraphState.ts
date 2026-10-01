@@ -46,10 +46,18 @@ export function useGraphState() {
   // Initialize graph from saved state or starter template
   const initialData = loadGraphState() || STARTER_TEMPLATES.ai_architecture;
 
-  const [nodes, setNodes] = useState<ThoughtFlowNode[]>(initialData.nodes);
-  const [edges, setEdges] = useState<ThoughtFlowEdge[]>(initialData.edges);
+  const [nodes, setNodes] = useState<ThoughtFlowNode[]>(() =>
+    JSON.parse(JSON.stringify(initialData.nodes))
+  );
+  const [edges, setEdges] = useState<ThoughtFlowEdge[]>(() =>
+    JSON.parse(JSON.stringify(initialData.edges))
+  );
   const [activeParentId, setActiveParentId] = useState<string | null>(initialData.activeParentId || null);
   const [selectedForMergeIds, setSelectedForMergeIds] = useState<string[]>([]);
+
+  // Focus Flow (Full View as Conversation) State
+  const [focusNodeId, setFocusNodeId] = useState<string | null>(null);
+  const [isFocusFlowOpen, setIsFocusFlowOpen] = useState(false);
 
   // Canvas visual state
   const [layoutDirection, setLayoutDirection] = useState<'TB' | 'LR'>('TB');
@@ -121,6 +129,16 @@ export function useGraphState() {
     addToast('info', 'Active fork parent updated. Type your thought in the prompt bar below.');
   }, [addToast]);
 
+  // Open Focus Flow (Full View as Conversation)
+  const handleOpenFocusFlow = useCallback((nodeId: string) => {
+    setFocusNodeId(nodeId);
+    setIsFocusFlowOpen(true);
+  }, []);
+
+  const handleCloseFocusFlow = useCallback(() => {
+    setIsFocusFlowOpen(false);
+  }, []);
+
   // Clear active parent
   const handleClearParent = useCallback(() => {
     setActiveParentId(null);
@@ -141,16 +159,29 @@ export function useGraphState() {
   // Clear merge selections
   const handleClearMergeSelection = useCallback(() => {
     setSelectedForMergeIds([]);
+    setNodes((nds) => nds.map((n) => ({ ...n, selected: false })));
   }, []);
 
-  // Delete node and associated edges
+  // Delete single node and associated edges
   const handleDeleteNode = useCallback((nodeId: string) => {
     setNodes((nds) => nds.filter((n) => n.id !== nodeId));
     setEdges((eds) => eds.filter((e) => e.source !== nodeId && e.target !== nodeId));
     if (activeParentId === nodeId) setActiveParentId(null);
+    if (focusNodeId === nodeId) setFocusNodeId(null);
     setSelectedForMergeIds((prev) => prev.filter((id) => id !== nodeId));
     addToast('info', 'Node deleted from canvas.');
-  }, [activeParentId, addToast]);
+  }, [activeParentId, focusNodeId, addToast]);
+
+  // Batch delete selected nodes
+  const handleBatchDelete = useCallback((nodeIds: string[]) => {
+    const idSet = new Set(nodeIds);
+    setNodes((nds) => nds.filter((n) => !idSet.has(n.id)));
+    setEdges((eds) => eds.filter((e) => !idSet.has(e.source) && !idSet.has(e.target)));
+    if (activeParentId && idSet.has(activeParentId)) setActiveParentId(null);
+    if (focusNodeId && idSet.has(focusNodeId)) setFocusNodeId(null);
+    setSelectedForMergeIds([]);
+    addToast('info', `Deleted ${nodeIds.length} nodes from canvas.`);
+  }, [activeParentId, focusNodeId, addToast]);
 
   // Auto-layout
   const handleAutoLayout = useCallback((direction: 'TB' | 'LR' = layoutDirection) => {
@@ -173,11 +204,14 @@ export function useGraphState() {
     addToast('success', 'Settings saved successfully.');
   }, [addToast]);
 
-  // Load a template or imported graph
+  // Load a template or imported graph with deep copy
   const handleLoadGraph = useCallback((graph: SerializedGraph) => {
-    setNodes(graph.nodes);
-    setEdges(graph.edges);
-    setActiveParentId(graph.activeParentId || (graph.nodes[0]?.id ?? null));
+    const cleanNodes = JSON.parse(JSON.stringify(graph.nodes));
+    const cleanEdges = JSON.parse(JSON.stringify(graph.edges));
+    setNodes(cleanNodes);
+    setEdges(cleanEdges);
+    setActiveParentId(graph.activeParentId || (cleanNodes[0]?.id ?? null));
+    setFocusNodeId(graph.activeParentId || (cleanNodes[0]?.id ?? null));
     setSelectedForMergeIds([]);
     addToast('success', `Loaded "${graph.title}".`);
   }, [addToast]);
@@ -193,7 +227,7 @@ export function useGraphState() {
    * Adds User Node -> Resolves isolated branch context -> Calls Gemini API -> Adds/Updates Assistant Node
    */
   const handleAddThought = useCallback(
-    async (userPrompt: string, modelId: string) => {
+    async (userPrompt: string, modelId: string, parentOverride?: string) => {
       if (!userPrompt.trim() || isGenerating) return;
 
       setIsGenerating(true);
@@ -202,7 +236,8 @@ export function useGraphState() {
       const userNodeId = `node-user-${timestamp}`;
       const assistantNodeId = `node-ai-${timestamp + 1}`;
 
-      const parentIds = activeParentId ? [activeParentId] : [];
+      const targetParent = parentOverride !== undefined ? parentOverride : activeParentId;
+      const parentIds = targetParent ? [targetParent] : [];
 
       // Calculate placement position
       const userPos = calculateChildPosition(parentIds, nodes, edges);
@@ -223,16 +258,16 @@ export function useGraphState() {
           parentIds,
           createdAt: timestamp,
           status: 'idle',
-          branchLabel: activeParentId ? 'Forked Branch' : 'Root Idea',
+          branchLabel: targetParent ? 'Forked Branch' : 'Root Idea',
         },
       };
 
       // 2. Create User Edge
       const newEdges: ThoughtFlowEdge[] = [];
-      if (activeParentId) {
+      if (targetParent) {
         newEdges.push({
-          id: `edge-${activeParentId}-${userNodeId}`,
-          source: activeParentId,
+          id: `edge-${targetParent}-${userNodeId}`,
+          source: targetParent,
           target: userNodeId,
           type: settings.edgeType || 'smoothstep',
           animated: true,
@@ -265,19 +300,17 @@ export function useGraphState() {
         animated: true,
       };
 
-      // Update state immediately with user node and loading assistant node
       const updatedNodes = [...nodes, userNode, assistantNode];
       const allEdges = [...edges, ...newEdges, aiEdge];
 
       setNodes(updatedNodes);
       setEdges(allEdges);
       setActiveParentId(assistantNodeId);
+      setFocusNodeId(assistantNodeId);
 
       try {
-        // Resolve strict ancestor dialogue context for this branch
         const contextMessages = resolveGeminiContext(userNodeId, [...nodes, userNode]);
 
-        // Call Gemini API with streaming chunk updates
         const result = await generateGeminiResponse({
           apiKey: settings.apiKey,
           model: modelId,
@@ -302,7 +335,8 @@ export function useGraphState() {
           },
         });
 
-        // Finalize assistant node
+        const actualModel = result.actualModelUsed || modelId;
+
         setNodes((nds) =>
           nds.map((n) =>
             n.id === assistantNodeId
@@ -311,6 +345,7 @@ export function useGraphState() {
                   data: {
                     ...n.data,
                     content: result.text,
+                    modelUsed: actualModel,
                     status: 'idle',
                     tokens: result.tokens,
                   },
@@ -318,6 +353,10 @@ export function useGraphState() {
               : n
           )
         );
+
+        if (result.fallbackNotice) {
+          addToast('info', result.fallbackNotice);
+        }
 
         if (settings.autoLayoutOnAdd) {
           setTimeout(() => {
@@ -357,8 +396,113 @@ export function useGraphState() {
   );
 
   /**
-   * Multi-Branch Synthesis (Merge Execution):
-   * Synthesizes 2+ selected branch endpoints into a unified resolution node.
+   * Retry generating an error node
+   */
+  const handleRetryNode = useCallback(
+    async (nodeId: string, overrideModelId?: string) => {
+      const node = nodes.find((n) => n.id === nodeId);
+      if (!node || isGenerating) return;
+
+      const modelId = overrideModelId || node.data.modelUsed || settings.defaultModel;
+      setIsGenerating(true);
+
+      // Reset node status to generating
+      setNodes((nds) =>
+        nds.map((n) =>
+          n.id === nodeId
+            ? {
+                ...n,
+                data: {
+                  ...n.data,
+                  modelUsed: modelId,
+                  status: 'generating',
+                  error: undefined,
+                },
+              }
+            : n
+        )
+      );
+
+      try {
+        const parentId = node.data.parentIds?.[0];
+        const contextMessages = parentId
+          ? resolveGeminiContext(parentId, nodes)
+          : [{ role: 'user' as const, parts: [{ text: node.data.content || 'Continue' }] }];
+
+        const result = await generateGeminiResponse({
+          apiKey: settings.apiKey,
+          model: modelId,
+          messages: contextMessages,
+          systemInstruction: settings.systemInstruction,
+          temperature: settings.temperature,
+          maxOutputTokens: settings.maxOutputTokens,
+          onStreamChunk: (_, fullText) => {
+            setNodes((nds) =>
+              nds.map((n) =>
+                n.id === nodeId
+                  ? {
+                      ...n,
+                      data: {
+                        ...n.data,
+                        content: fullText,
+                      },
+                    }
+                  : n
+              )
+            );
+          },
+        });
+
+        const actualModel = result.actualModelUsed || modelId;
+
+        setNodes((nds) =>
+          nds.map((n) =>
+            n.id === nodeId
+              ? {
+                  ...n,
+                  data: {
+                    ...n.data,
+                    content: result.text,
+                    modelUsed: actualModel,
+                    status: 'idle',
+                    tokens: result.tokens,
+                  },
+                }
+              : n
+          )
+        );
+
+        if (result.fallbackNotice) {
+          addToast('info', result.fallbackNotice);
+        } else {
+          addToast('success', `Generated successfully with ${actualModel}!`);
+        }
+      } catch (err: unknown) {
+        const errorMsg = err instanceof Error ? err.message : 'Retry failed';
+        setNodes((nds) =>
+          nds.map((n) =>
+            n.id === nodeId
+              ? {
+                  ...n,
+                  data: {
+                    ...n.data,
+                    status: 'error',
+                    error: errorMsg,
+                  },
+                }
+              : n
+          )
+        );
+        addToast('error', errorMsg);
+      } finally {
+        setIsGenerating(false);
+      }
+    },
+    [nodes, isGenerating, settings, addToast]
+  );
+
+  /**
+   * Multi-Branch Synthesis (Merge Execution)
    */
   const handleConfirmMerge = useCallback(
     async (synthesisPrompt: string, modelId: string) => {
@@ -373,17 +517,14 @@ export function useGraphState() {
       const selectedNodes = nodes.filter((n) => selectedForMergeIds.includes(n.id));
       const nodesMap = new Map(nodes.map((n) => [n.id, n]));
 
-      // Build structured synthesis prompt
       const { messages } = buildMergeSynthesisPrompt(
         selectedNodes,
         nodesMap,
         synthesisPrompt
       );
 
-      // Position merge node centrally below selected parents
       const mergePos = calculateChildPosition(selectedForMergeIds, nodes, edges);
 
-      // Create new merge node
       const mergeNode: ThoughtFlowNode = {
         id: mergeNodeId,
         type: 'thought',
@@ -401,20 +542,20 @@ export function useGraphState() {
         },
       };
 
-      // Edges connecting all selected parents to the new merge node
       const mergeEdges: ThoughtFlowEdge[] = selectedForMergeIds.map((parentId) => ({
         id: `edge-merge-${parentId}-${mergeNodeId}`,
         source: parentId,
         target: mergeNodeId,
         type: settings.edgeType || 'smoothstep',
         animated: true,
-        style: { stroke: '#a855f7', strokeWidth: 2.5 },
+        style: { stroke: '#e4e4e7', strokeWidth: 2.5 },
         data: { isMergeEdge: true },
       }));
 
       setNodes((nds) => [...nds, mergeNode]);
       setEdges((eds) => [...eds, ...mergeEdges]);
       setActiveParentId(mergeNodeId);
+      setFocusNodeId(mergeNodeId);
       setSelectedForMergeIds([]);
 
       try {
@@ -521,7 +662,13 @@ export function useGraphState() {
     toasts,
     dismissToast,
 
-    // Modal state
+    // Focus Flow
+    focusNodeId,
+    isFocusFlowOpen,
+    handleOpenFocusFlow,
+    handleCloseFocusFlow,
+
+    // Modals
     isSettingsOpen,
     setIsSettingsOpen,
     isExportOpen,
@@ -539,6 +686,8 @@ export function useGraphState() {
     handleToggleMergeSelect,
     handleClearMergeSelection,
     handleDeleteNode,
+    handleBatchDelete,
+    handleRetryNode,
     handleAutoLayout,
     handleSaveSettings,
     handleLoadGraph,

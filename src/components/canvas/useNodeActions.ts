@@ -7,9 +7,11 @@ export function useNodeActions(): NodeActionsContextValue {
   if (!ctx) {
     return {
       onFork: () => {},
+      onOpenFocusFlow: () => {},
       onToggleMergeSelect: () => {},
       onDeleteNode: () => {},
       onInspectNode: () => {},
+      onRetryNode: () => {},
       selectedForMergeIds: [],
       activeParentId: null,
     };

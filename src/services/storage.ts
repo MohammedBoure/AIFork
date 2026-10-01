@@ -16,6 +16,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   customModels: [],
   autoLayoutOnAdd: true,
   edgeType: 'smoothstep',
+  theme: 'monochrome',
 };
 
 export function loadSettings(): AppSettings {

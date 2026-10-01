@@ -2,15 +2,14 @@
 @import "@xyflow/react/dist/style.css";
 
 :root {
-  --background: #090d16;
-  --foreground: #f8fafc;
-  --card: #0f172a;
-  --card-border: #1e293b;
-  --primary: #3b82f6;
-  --primary-foreground: #ffffff;
-  --accent: #8b5cf6;
-  --muted: #64748b;
-  --muted-foreground: #94a3b8;
+  --background: #000000;
+  --foreground: #f4f4f5;
+  --card: #09090b;
+  --card-border: #27272a;
+  --primary: #ffffff;
+  --primary-foreground: #09090b;
+  --muted: #71717a;
+  --muted-foreground: #a1a1aa;
 }
 
 * {
@@ -31,40 +30,46 @@ body,
   -webkit-font-smoothing: antialiased;
 }
 
-/* React Flow custom styling */
+/* React Flow custom styling - Monochrome Edition */
 .react-flow__background {
-  background-color: #080c14;
+  background-color: #000000 !important;
+}
+
+.react-flow__selection {
+  background: rgba(255, 255, 255, 0.05) !important;
+  border: 1px dashed rgba(255, 255, 255, 0.5) !important;
+  border-radius: 8px !important;
 }
 
 .react-flow__controls {
-  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.8), 0 8px 10px -6px rgba(0, 0, 0, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 12px;
   overflow: hidden;
-  background: rgba(15, 23, 42, 0.85);
+  background: rgba(9, 9, 11, 0.9);
   backdrop-filter: blur(12px);
 }
 
 .react-flow__controls-button {
   background: transparent !important;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
-  color: #94a3b8 !important;
-  fill: #94a3b8 !important;
+  color: #a1a1aa !important;
+  fill: #a1a1aa !important;
   transition: all 0.15s ease;
 }
 
 .react-flow__controls-button:hover {
-  background: rgba(59, 130, 246, 0.2) !important;
-  color: #60a5fa !important;
-  fill: #60a5fa !important;
+  background: rgba(255, 255, 255, 0.1) !important;
+  color: #ffffff !important;
+  fill: #ffffff !important;
 }
 
 .react-flow__minimap {
-  background-color: rgba(15, 23, 42, 0.85) !important;
+  background-color: rgba(9, 9, 11, 0.9) !important;
   backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
   border-radius: 12px !important;
-  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5) !important;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.8) !important;
   overflow: hidden;
 }
 
@@ -92,7 +97,7 @@ body,
 .prose-custom h3,
 .prose-custom h4 {
   font-weight: 600;
-  color: #f1f5f9;
+  color: #ffffff;
   margin-top: 0.75rem;
   margin-bottom: 0.35rem;
 }
@@ -122,12 +127,12 @@ body,
 }
 
 .prose-custom code:not(pre code) {
-  background: rgba(30, 41, 59, 0.8);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(39, 39, 42, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.12);
   padding: 0.15rem 0.35rem;
   border-radius: 0.25rem;
   font-size: 0.8rem;
-  color: #38bdf8;
+  color: #f4f4f5;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 }
 
@@ -136,16 +141,16 @@ body,
   margin-bottom: 0.6rem;
   border-radius: 0.5rem;
   overflow-x: auto;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .prose-custom blockquote {
-  border-left: 3px solid #3b82f6;
+  border-left: 3px solid #71717a;
   padding-left: 0.75rem;
   margin-left: 0;
   margin-top: 0.5rem;
   margin-bottom: 0.5rem;
-  color: #94a3b8;
+  color: #a1a1aa;
   font-style: italic;
 }
 
@@ -159,30 +164,31 @@ body,
 
 .prose-custom th,
 .prose-custom td {
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.12);
   padding: 0.35rem 0.6rem;
 }
 
 .prose-custom th {
-  background: rgba(30, 41, 59, 0.6);
+  background: rgba(39, 39, 42, 0.7);
   font-weight: 600;
+  color: #ffffff;
 }
 
 /* Custom scrollbars */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
 }
 
 ::-webkit-scrollbar-track {
-  background: rgba(15, 23, 42, 0.5);
+  background: rgba(9, 9, 11, 0.5);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(100, 116, 139, 0.4);
+  background: rgba(113, 113, 122, 0.3);
   border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(100, 116, 139, 0.7);
+  background: rgba(113, 113, 122, 0.6);
 }

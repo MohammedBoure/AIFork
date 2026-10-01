@@ -4,10 +4,18 @@ export const DEFAULT_PRESET_MODELS: ModelOption[] = [
   {
     id: 'gemini-2.5-flash',
     name: 'Gemini 2.5 Flash',
-    description: 'Fastest, highly cost-effective model optimized for low-latency ideation and rapid branching.',
-    badge: 'Fast & Versatile',
+    description: 'Most reliable, fastest production model. Highly resilient against server overload.',
+    badge: 'Fast & Stable',
     category: 'fast',
-    recommendedFor: 'fork',
+    recommendedFor: 'all',
+  },
+  {
+    id: 'gemini-3.7-flash',
+    name: 'Gemini 3.7 Flash',
+    description: 'Latest hybrid reasoning model. Note: may occasionally experience high demand (503).',
+    badge: 'Reasoning Flash',
+    category: 'pro',
+    recommendedFor: 'chat',
   },
   {
     id: 'gemini-2.5-pro',
@@ -26,20 +34,20 @@ export const DEFAULT_PRESET_MODELS: ModelOption[] = [
     recommendedFor: 'chat',
   },
   {
+    id: 'gemini-1.5-flash',
+    name: 'Gemini 1.5 Flash',
+    description: 'High availability fallback model with low latency and global distribution.',
+    badge: 'High Availability',
+    category: 'fast',
+    recommendedFor: 'fork',
+  },
+  {
     id: 'gemini-1.5-pro',
     name: 'Gemini 1.5 Pro',
-    description: 'Massive 2M token context window, deep analytical capability across long documents.',
+    description: 'Massive 2M token context window for long-context analysis.',
     badge: 'Long Context',
     category: 'pro',
     recommendedFor: 'all',
-  },
-  {
-    id: 'gemini-1.5-flash',
-    name: 'Gemini 1.5 Flash',
-    description: 'High frequency and lightweight reasoning for quick iterations.',
-    badge: 'Lightweight',
-    category: 'fast',
-    recommendedFor: 'chat',
   },
 ];
 
@@ -100,7 +108,7 @@ export async function fetchAvailableGeminiModels(apiKey: string): Promise<ModelO
       })
       .map((m: { name: string; displayName?: string; description?: string }) => {
         const id = m.name.replace('models/', '');
-        const isPro = id.includes('pro');
+        const isPro = id.includes('pro') || id.includes('3.7');
         return {
           id,
           name: m.displayName || id,
@@ -126,14 +134,77 @@ export interface GenerateGeminiOptions {
   temperature?: number;
   maxOutputTokens?: number;
   onStreamChunk?: (chunkText: string, fullAccumulatedText: string) => void;
+  maxRetries?: number;
+}
+
+export interface GenerateGeminiResult {
+  text: string;
+  actualModelUsed?: string;
+  fallbackNotice?: string;
+  tokens?: {
+    promptTokens?: number;
+    candidatesTokens?: number;
+    totalTokens?: number;
+  };
 }
 
 /**
- * Generates response using Google Gemini API or provides rich simulation fallback if no key is configured.
+ * Helper to execute a direct call to a specific model endpoint
+ */
+async function callGeminiEndpoint(
+  endpointModel: string,
+  apiKey: string,
+  payload: Record<string, unknown>,
+  onStreamChunk?: (chunkText: string, fullAccumulatedText: string) => void
+): Promise<GenerateGeminiResult> {
+  const cleanModel = endpointModel.replace('models/', '');
+  const url = `${GEMINI_API_BASE_URL}/models/${cleanModel}:generateContent?key=${apiKey.trim()}`;
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    const rawMessage = errorData.error?.message || '';
+
+    const error = new Error(
+      rawMessage || `Gemini API Error (HTTP ${response.status}): ${response.statusText}`
+    ) as Error & { status?: number };
+    error.status = response.status;
+    throw error;
+  }
+
+  const result = await response.json();
+  const candidate = result.candidates?.[0];
+  const text = candidate?.content?.parts?.map((p: { text?: string }) => p.text || '').join('') || '';
+
+  if (onStreamChunk) {
+    onStreamChunk(text, text);
+  }
+
+  const usage = result.usageMetadata;
+  return {
+    text: text.trim(),
+    actualModelUsed: cleanModel,
+    tokens: usage ? {
+      promptTokens: usage.promptTokenCount,
+      candidatesTokens: usage.candidatesTokenCount,
+      totalTokens: usage.totalTokenCount,
+    } : undefined,
+  };
+}
+
+/**
+ * Generates response using Google Gemini API with automatic exponential retry and intelligent 503 fallback
  */
 export async function generateGeminiResponse(
   options: GenerateGeminiOptions
-): Promise<{ text: string; tokens?: { promptTokens?: number; candidatesTokens?: number; totalTokens?: number } }> {
+): Promise<GenerateGeminiResult> {
   const {
     apiKey,
     model,
@@ -142,15 +213,14 @@ export async function generateGeminiResponse(
     temperature = 0.7,
     maxOutputTokens = 2048,
     onStreamChunk,
+    maxRetries = 2,
   } = options;
 
   if (!apiKey || apiKey.trim().length === 0) {
     return simulateBranchResponse(messages, model, onStreamChunk);
   }
 
-  const endpointModel = model.replace('models/', '');
-  const url = `${GEMINI_API_BASE_URL}/models/${endpointModel}:generateContent?key=${apiKey.trim()}`;
-
+  const primaryModel = model.replace('models/', '');
   const payload: Record<string, unknown> = {
     contents: messages,
     generationConfig: {
@@ -165,44 +235,60 @@ export async function generateGeminiResponse(
     };
   }
 
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(payload),
-  });
+  let attempt = 0;
+  while (attempt <= maxRetries) {
+    try {
+      const result = await callGeminiEndpoint(primaryModel, apiKey, payload, onStreamChunk);
+      return result;
+    } catch (err: unknown) {
+      const status = (err as { status?: number })?.status;
 
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    const message = errorData.error?.message || `Gemini API Error (HTTP ${response.status}): ${response.statusText}`;
-    throw new Error(message);
+      // If 503 (Overloaded) or 429 (Rate Limited)
+      if ((status === 503 || status === 429) && attempt < maxRetries) {
+        attempt++;
+        await new Promise((res) => setTimeout(res, attempt * 1200));
+        continue;
+      }
+
+      // If 503 continues on primary model (e.g. gemini-3.7-flash), attempt automatic fallback to gemini-2.5-flash
+      if (status === 503 && primaryModel !== 'gemini-2.5-flash') {
+        const fallbackModel = 'gemini-2.5-flash';
+        try {
+          console.warn(`Model ${primaryModel} returned 503 (Overloaded). Auto-recovering using ${fallbackModel}...`);
+          const fallbackResult = await callGeminiEndpoint(fallbackModel, apiKey, payload, onStreamChunk);
+          return {
+            ...fallbackResult,
+            actualModelUsed: fallbackModel,
+            fallbackNotice: `Google servers reported ${primaryModel} was temporarily overloaded (HTTP 503). Automatically resolved using ${fallbackModel}.`,
+          };
+        } catch (fallbackErr) {
+          console.warn(`Fallback to ${fallbackModel} also failed:`, fallbackErr);
+        }
+      }
+
+      // If all attempts exhausted
+      if (attempt >= maxRetries) {
+        if (status === 503) {
+          throw new Error(
+            `Model ${primaryModel} is currently overloaded on Google's servers (HTTP 503 Service Unavailable). Please click Retry with Gemini 2.5 Flash.`
+          );
+        }
+        throw err;
+      }
+
+      attempt++;
+      await new Promise((res) => setTimeout(res, attempt * 1000));
+    }
   }
 
-  const result = await response.json();
-  const candidate = result.candidates?.[0];
-  const text = candidate?.content?.parts?.map((p: { text?: string }) => p.text || '').join('') || '';
-
-  if (onStreamChunk) {
-    onStreamChunk(text, text);
-  }
-
-  const usage = result.usageMetadata;
-  return {
-    text: text.trim(),
-    tokens: usage ? {
-      promptTokens: usage.promptTokenCount,
-      candidatesTokens: usage.candidatesTokenCount,
-      totalTokens: usage.totalTokenCount,
-    } : undefined,
-  };
+  throw new Error(`Failed to generate response after ${maxRetries} retries.`);
 }
 
 async function simulateBranchResponse(
   messages: GeminiChatMessage[],
   model: string,
   onStreamChunk?: (chunkText: string, fullAccumulatedText: string) => void
-): Promise<{ text: string }> {
+): Promise<GenerateGeminiResult> {
   const lastMessage = messages[messages.length - 1];
   const lastUserText = lastMessage?.parts[0]?.text || '';
   const isMerge = lastUserText.includes('synthesizing conclusions') || lastUserText.includes('User Synthesis Goal');
@@ -216,7 +302,7 @@ Synthesizing the explored branches using **${model}**:
 
 1. **Strategic Synergy**:
    - The selected branches offer complementary trade-offs. While one path optimizes for rapid execution and low overhead, the other provides robustness and deep architectural resilience.
-   - By decoupling the data ingestion tier while maintaining unified storage, both goals can be satisfied concurrently.
+   - Decoupling the data ingestion tier while maintaining unified storage satisfies both requirements concurrently.
 
 2. **Comparative Trade-offs**:
    | Attribute | Branch A (Rapid Path) | Branch B (Resilient Path) | Unified Hybrid |
@@ -264,5 +350,5 @@ interface BranchResult {
     await new Promise((res) => setTimeout(res, 20));
   }
 
-  return { text: generatedText };
+  return { text: generatedText, actualModelUsed: model };
 }

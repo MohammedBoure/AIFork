@@ -20,7 +20,7 @@ export function formatTimestamp(timestamp: number): string {
 }
 
 /**
- * Returns color classes and friendly label for model IDs
+ * Returns color classes and friendly label for model IDs in monochrome/refined theme
  */
 export function getModelBadgeInfo(modelId?: string): {
   label: string;
@@ -30,41 +30,41 @@ export function getModelBadgeInfo(modelId?: string): {
   if (!modelId) {
     return {
       label: 'Default',
-      badgeClass: 'bg-slate-800 text-slate-300 border-slate-700',
-      dotClass: 'bg-slate-400',
+      badgeClass: 'bg-zinc-900 text-zinc-300 border-zinc-700',
+      dotClass: 'bg-zinc-400',
     };
   }
 
   const lower = modelId.toLowerCase();
 
-  if (lower.includes('2.5-pro') || lower.includes('pro')) {
+  if (lower.includes('3.7') || lower.includes('pro')) {
     return {
       label: modelId,
-      badgeClass: 'bg-purple-950/80 text-purple-300 border-purple-800/80 shadow-sm shadow-purple-900/30',
-      dotClass: 'bg-purple-400 animate-pulse',
+      badgeClass: 'bg-zinc-100 text-zinc-950 border-zinc-200 shadow-sm font-semibold',
+      dotClass: 'bg-zinc-950 animate-pulse',
     };
   }
 
-  if (lower.includes('2.5-flash') || lower.includes('2.0-flash') || lower.includes('flash')) {
+  if (lower.includes('flash')) {
     return {
       label: modelId,
-      badgeClass: 'bg-blue-950/80 text-blue-300 border-blue-800/80 shadow-sm shadow-blue-900/30',
-      dotClass: 'bg-blue-400',
+      badgeClass: 'bg-zinc-900 text-zinc-200 border-zinc-700 shadow-sm',
+      dotClass: 'bg-zinc-300',
     };
   }
 
   if (lower.includes('exp') || lower.includes('thinking')) {
     return {
       label: modelId,
-      badgeClass: 'bg-amber-950/80 text-amber-300 border-amber-800/80 shadow-sm shadow-amber-900/30',
-      dotClass: 'bg-amber-400',
+      badgeClass: 'bg-zinc-800 text-zinc-100 border-zinc-600 shadow-sm',
+      dotClass: 'bg-zinc-100',
     };
   }
 
   return {
     label: modelId,
-    badgeClass: 'bg-emerald-950/80 text-emerald-300 border-emerald-800/80',
-    dotClass: 'bg-emerald-400',
+    badgeClass: 'bg-zinc-900 text-zinc-300 border-zinc-800',
+    dotClass: 'bg-zinc-400',
   };
 }
 

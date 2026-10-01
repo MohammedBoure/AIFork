@@ -62,6 +62,7 @@ export interface AppSettings {
   customModels: string[];
   autoLayoutOnAdd: boolean;
   edgeType: 'smoothstep' | 'bezier' | 'straight';
+  theme: 'monochrome' | 'slate';
 }
 
 /**
@@ -94,4 +95,14 @@ export interface MergeConfig {
   selectedNodeIds: string[];
   synthesisPrompt: string;
   modelId: string;
+}
+
+/**
+ * Context menu payload
+ */
+export interface ContextMenuState {
+  isOpen: boolean;
+  x: number;
+  y: number;
+  nodeId?: string;
 }
