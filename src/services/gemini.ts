@@ -12,8 +12,8 @@ export const DEFAULT_PRESET_MODELS: ModelOption[] = [
   {
     id: 'gemini-3.7-flash',
     name: 'Gemini 3.7 Flash',
-    description: 'Latest hybrid reasoning model. Note: may occasionally experience high demand (503).',
-    badge: 'Reasoning Flash',
+    description: 'Latest hybrid reasoning model. Free tier has limited quota & high load (auto-recovers via 2.5 Flash on 503/429).',
+    badge: 'Reasoning (High Load)',
     category: 'pro',
     recommendedFor: 'chat',
   },
@@ -200,7 +200,16 @@ async function callGeminiEndpoint(
 }
 
 /**
- * Generates response using Google Gemini API with automatic exponential retry and intelligent 503 fallback
+ * Returns prioritized fallback models when a model fails with 503 (Overloaded) or 429 (Quota / Rate-Limited).
+ */
+export function getFallbackModels(primaryModel: string): string[] {
+  const clean = primaryModel.replace('models/', '');
+  const candidatePool = ['gemini-2.5-flash', 'gemini-1.5-flash', 'gemini-2.0-flash'];
+  return candidatePool.filter((m) => m !== clean);
+}
+
+/**
+ * Generates response using Google Gemini API with immediate, intelligent 503 & 429 fallback cascades
  */
 export async function generateGeminiResponse(
   options: GenerateGeminiOptions
@@ -213,7 +222,6 @@ export async function generateGeminiResponse(
     temperature = 0.7,
     maxOutputTokens = 2048,
     onStreamChunk,
-    maxRetries = 2,
   } = options;
 
   if (!apiKey || apiKey.trim().length === 0) {
@@ -235,53 +243,64 @@ export async function generateGeminiResponse(
     };
   }
 
-  let attempt = 0;
-  while (attempt <= maxRetries) {
-    try {
-      const result = await callGeminiEndpoint(primaryModel, apiKey, payload, onStreamChunk);
-      return result;
-    } catch (err: unknown) {
-      const status = (err as { status?: number })?.status;
+  // 1. Attempt generation with the user's primary selected model
+  try {
+    const result = await callGeminiEndpoint(primaryModel, apiKey, payload, onStreamChunk);
+    return result;
+  } catch (err: unknown) {
+    const status = (err as { status?: number })?.status;
+    const isOverloadOrQuota = status === 503 || status === 429;
 
-      // If 503 (Overloaded) or 429 (Rate Limited)
-      if ((status === 503 || status === 429) && attempt < maxRetries) {
-        attempt++;
-        await new Promise((res) => setTimeout(res, attempt * 1200));
-        continue;
-      }
+    // If HTTP 503 (Server Overloaded) or HTTP 429 (Resource Exhausted / Rate-Limited):
+    // DO NOT retry the same failing model endpoint. Repeating requests to an overloaded or
+    // rate-limited model exacerbates quota exhaustion and triggers cascading 429s.
+    // Instead, immediately cascade to proven stable fallback models (e.g. gemini-2.5-flash).
+    if (isOverloadOrQuota) {
+      const fallbackCandidates = getFallbackModels(primaryModel);
+      const failureReason =
+        status === 503 ? 'temporarily overloaded (HTTP 503)' : 'rate-limited / out of quota (HTTP 429)';
 
-      // If 503 continues on primary model (e.g. gemini-3.7-flash), attempt automatic fallback to gemini-2.5-flash
-      if (status === 503 && primaryModel !== 'gemini-2.5-flash') {
-        const fallbackModel = 'gemini-2.5-flash';
+      console.warn(
+        `[ThoughtGraph AI] Model "${primaryModel}" is ${failureReason}. Commencing automatic fallback cascade across:`,
+        fallbackCandidates
+      );
+
+      for (const fallbackModel of fallbackCandidates) {
         try {
-          console.warn(`Model ${primaryModel} returned 503 (Overloaded). Auto-recovering using ${fallbackModel}...`);
-          const fallbackResult = await callGeminiEndpoint(fallbackModel, apiKey, payload, onStreamChunk);
+          console.info(`[ThoughtGraph AI] Attempting fallback with "${fallbackModel}"...`);
+          const fallbackResult = await callGeminiEndpoint(
+            fallbackModel,
+            apiKey,
+            payload,
+            onStreamChunk
+          );
+
           return {
             ...fallbackResult,
             actualModelUsed: fallbackModel,
-            fallbackNotice: `Google servers reported ${primaryModel} was temporarily overloaded (HTTP 503). Automatically resolved using ${fallbackModel}.`,
+            fallbackNotice: `Notice: ${primaryModel} was ${failureReason}. Response was automatically generated using ${fallbackModel}.`,
           };
-        } catch (fallbackErr) {
-          console.warn(`Fallback to ${fallbackModel} also failed:`, fallbackErr);
+        } catch (fbErr: unknown) {
+          console.warn(`[ThoughtGraph AI] Fallback to "${fallbackModel}" failed:`, fbErr);
         }
       }
 
-      // If all attempts exhausted
-      if (attempt >= maxRetries) {
-        if (status === 503) {
-          throw new Error(
-            `Model ${primaryModel} is currently overloaded on Google's servers (HTTP 503 Service Unavailable). Please click Retry with Gemini 2.5 Flash.`
-          );
-        }
-        throw err;
-      }
-
-      attempt++;
-      await new Promise((res) => setTimeout(res, attempt * 1000));
+      // If all fallbacks failed
+      const statusLabel = status === 503 ? 'Overloaded (HTTP 503)' : 'Quota / Rate Limited (HTTP 429)';
+      throw new Error(
+        `Google Gemini servers reported that "${primaryModel}" is ${statusLabel}. Automatic fallback to ${fallbackCandidates.join(', ')} was also attempted. Please check your Gemini API quota or retry in a few moments.`
+      );
     }
-  }
 
-  throw new Error(`Failed to generate response after ${maxRetries} retries.`);
+    // If it's a transient network gateway error (502, 504) or undefined network drop, perform one brief retry
+    if (status === 502 || status === 504 || typeof status === 'undefined') {
+      await new Promise((res) => setTimeout(res, 1000));
+      return await callGeminiEndpoint(primaryModel, apiKey, payload, onStreamChunk);
+    }
+
+    // For 400, 403, or other explicit API rejections, rethrow immediately
+    throw err;
+  }
 }
 
 async function simulateBranchResponse(

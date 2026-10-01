@@ -58,30 +58,30 @@ export const ForkPromptBar: React.FC<ForkPromptBarProps> = ({
 
   return (
     <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 z-40 w-full max-w-3xl px-4 pointer-events-none">
-      <div className="pointer-events-auto bg-slate-950/90 border border-slate-800 rounded-2xl shadow-2xl backdrop-blur-xl p-3 text-slate-100 transition-all duration-200 focus-within:border-blue-500/70 focus-within:ring-2 focus-within:ring-blue-500/20">
+      <div className="pointer-events-auto bg-zinc-950/95 border border-zinc-800 rounded-2xl shadow-2xl backdrop-blur-xl p-3 text-zinc-100 transition-all duration-200 focus-within:border-zinc-500 focus-within:ring-2 focus-within:ring-zinc-500/20">
         {/* Parent Context Banner & Model Selector */}
-        <div className="flex flex-wrap items-center justify-between gap-2 pb-2 mb-2 border-b border-slate-800/80 text-xs">
+        <div className="flex flex-wrap items-center justify-between gap-2 pb-2 mb-2 border-b border-zinc-800/80 text-xs">
           {/* Active Branch Parent */}
           <div className="flex items-center gap-1.5 min-w-0">
             {activeParentId ? (
-              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-blue-950/70 border border-blue-800/70 text-blue-300">
-                <GitFork className="w-3.5 h-3.5 text-blue-400 transform -rotate-90 flex-shrink-0" />
-                <span className="text-slate-400 text-[11px]">Branching off:</span>
-                <span className="font-medium max-w-[220px] sm:max-w-xs truncate text-blue-200">
+              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-zinc-900 border border-zinc-700/80 text-zinc-200">
+                <GitFork className="w-3.5 h-3.5 text-zinc-300 transform -rotate-90 flex-shrink-0" />
+                <span className="text-zinc-400 text-[11px]">Branching off:</span>
+                <span className="font-medium max-w-[220px] sm:max-w-xs truncate text-zinc-100">
                   {activeParentTitle || `Node ${activeParentId.slice(0, 8)}`}
                 </span>
                 <button
                   type="button"
                   onClick={onClearParent}
-                  className="ml-1 p-0.5 text-slate-400 hover:text-white rounded hover:bg-blue-900/50"
+                  className="ml-1 p-0.5 text-zinc-400 hover:text-white rounded hover:bg-zinc-800"
                   title="Branch off root canvas instead"
                 >
                   <X className="w-3 h-3" />
                 </button>
               </div>
             ) : (
-              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-800 text-slate-400">
-                <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-zinc-900 border border-zinc-800 text-zinc-400">
+                <Sparkles className="w-3.5 h-3.5 text-zinc-300" />
                 <span className="text-[11px]">Genesis Thought (Root Node)</span>
               </div>
             )}
@@ -89,7 +89,7 @@ export const ForkPromptBar: React.FC<ForkPromptBarProps> = ({
 
           {/* Granular Per-Fork Model Selector */}
           <div className="flex items-center gap-1.5">
-            <span className="text-[11px] text-slate-400 hidden sm:inline">Model for this branch:</span>
+            <span className="text-[11px] text-zinc-400 hidden sm:inline">Model for this branch:</span>
             <ModelSelector
               selectedModel={activeModel}
               onChange={setSelectedModel}
@@ -113,18 +113,18 @@ export const ForkPromptBar: React.FC<ForkPromptBarProps> = ({
                 : 'Start a new thought graph or problem statement...'
             }
             disabled={isGenerating}
-            className="flex-1 bg-transparent resize-none text-xs sm:text-sm text-slate-100 placeholder-slate-500 focus:outline-none leading-relaxed max-h-36 overflow-y-auto"
+            className="flex-1 bg-transparent resize-none text-xs sm:text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none leading-relaxed max-h-36 overflow-y-auto"
           />
 
           <button
             type="button"
             onClick={() => handleSubmit()}
             disabled={!prompt.trim() || isGenerating}
-            className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-medium shadow-md shadow-blue-900/40 transition-all flex-shrink-0"
+            className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-zinc-100 hover:bg-white disabled:opacity-40 disabled:cursor-not-allowed text-zinc-950 text-xs font-semibold shadow-md transition-all flex-shrink-0"
           >
             {isGenerating ? (
               <>
-                <Sparkles className="w-4 h-4 animate-spin text-white" />
+                <Sparkles className="w-4 h-4 animate-spin text-zinc-950" />
                 <span className="hidden sm:inline">Branching...</span>
               </>
             ) : (
@@ -137,9 +137,9 @@ export const ForkPromptBar: React.FC<ForkPromptBarProps> = ({
         </div>
 
         {/* Suggestion Starter Chips */}
-        <div className="hidden md:flex items-center gap-1.5 mt-2 pt-2 border-t border-slate-800/60 overflow-x-auto text-[11px]">
-          <span className="text-slate-500 flex items-center gap-1 flex-shrink-0">
-            <Lightbulb className="w-3 h-3 text-amber-400" />
+        <div className="hidden md:flex items-center gap-1.5 mt-2 pt-2 border-t border-zinc-800/60 overflow-x-auto text-[11px]">
+          <span className="text-zinc-500 flex items-center gap-1 flex-shrink-0">
+            <Lightbulb className="w-3 h-3 text-zinc-300" />
             <span>Starters:</span>
           </span>
           {PROMPT_SUGGESTIONS.map((suggestion) => (
@@ -147,7 +147,7 @@ export const ForkPromptBar: React.FC<ForkPromptBarProps> = ({
               key={suggestion}
               type="button"
               onClick={() => setPrompt(suggestion.replace(/^[^\s]+\s/, ''))}
-              className="px-2 py-0.5 rounded-md bg-slate-900/80 hover:bg-slate-850 hover:text-blue-300 text-slate-400 border border-slate-800/80 transition-colors whitespace-nowrap"
+              className="px-2 py-0.5 rounded-md bg-zinc-900 hover:bg-zinc-800 hover:text-white text-zinc-400 border border-zinc-800 transition-colors whitespace-nowrap"
             >
               {suggestion}
             </button>
