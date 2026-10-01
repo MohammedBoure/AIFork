@@ -137,3 +137,25 @@ export interface ContextMenuState {
   y: number;
   nodeId?: string;
 }
+
+/**
+ * Graph session metadata stored in sessions index
+ */
+export interface GraphSessionMeta {
+  id: string;
+  title: string;
+  nodeCount: number;
+  edgeCount: number;
+  createdAt: number;
+  updatedAt: number;
+  previewText?: string;
+}
+
+/**
+ * Full Graph Session including nodes, edges, and active state
+ */
+export interface GraphSession extends GraphSessionMeta {
+  nodes: ThoughtFlowNode[];
+  edges: ThoughtFlowEdge[];
+  activeParentId: string | null;
+}

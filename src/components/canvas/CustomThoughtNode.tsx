@@ -24,8 +24,10 @@ import { CodeBlock } from '../ui/CodeBlock';
 import { Badge } from '../ui/Badge';
 import { getModelBadgeInfo, formatTimestamp, copyToClipboard } from '../../utils/formatters';
 import { useNodeActions } from './useNodeActions';
+import { useLanguage } from '../../i18n/useLanguage';
 
 export const CustomThoughtNode: React.FC<NodeProps> = memo(({ id, data, selected }) => {
+  const { t } = useLanguage();
   const nodeData = data as unknown as ThoughtNodeData;
   const {
     onFork,
@@ -162,9 +164,9 @@ export const CustomThoughtNode: React.FC<NodeProps> = memo(({ id, data, selected
             <div className="flex items-center justify-between text-[11px] text-zinc-400 pb-1 border-b border-zinc-800">
               <span className="font-semibold text-zinc-200 flex items-center gap-1.5">
                 <Pencil className="w-3 h-3 text-zinc-300" />
-                <span>تعديل المحتوى / Edit Prompt</span>
+                <span>{t.canvas.editPromptTitle}</span>
               </span>
-              <span className="text-[10px] text-zinc-500 font-mono">يدعم العربية / Markdown</span>
+              <span className="text-[10px] text-zinc-500 font-mono">{t.canvas.editPromptHint}</span>
             </div>
 
             <textarea
@@ -173,7 +175,7 @@ export const CustomThoughtNode: React.FC<NodeProps> = memo(({ id, data, selected
               rows={4}
               dir="auto"
               className="w-full bg-zinc-900 border border-zinc-700 focus:border-zinc-300 rounded-xl p-2.5 text-xs text-zinc-100 placeholder-zinc-500 focus:outline-none leading-relaxed resize-y font-sans transition-colors bidi-auto"
-              placeholder="اكتب التعديل على الـ Prompt أو النص هنا..."
+              placeholder={t.canvas.editPromptPlaceholder}
             />
 
             <div className="flex flex-wrap items-center justify-between gap-1.5 pt-1">
@@ -186,10 +188,10 @@ export const CustomThoughtNode: React.FC<NodeProps> = memo(({ id, data, selected
                   }}
                   type="button"
                   className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-zinc-100 hover:bg-white text-zinc-950 text-[11px] font-semibold transition-colors shadow-sm"
-                  title="حفظ وتوليد الرد مجدداً بناءً على الـ Prompt المعدل"
+                  title={t.canvas.saveAndRerun}
                 >
                   <Sparkles className="w-3 h-3 text-zinc-950" />
-                  <span>حفظ وتوليد الرد</span>
+                  <span>{t.canvas.saveAndRerun}</span>
                 </button>
 
                 <button
@@ -200,10 +202,10 @@ export const CustomThoughtNode: React.FC<NodeProps> = memo(({ id, data, selected
                   }}
                   type="button"
                   className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 text-[11px] font-medium transition-colors"
-                  title="حفظ التعديل على النص فقط دون إعادة تشغيل الذكاء الاصطناعي"
+                  title={t.canvas.saveOnly}
                 >
                   <Check className="w-3 h-3 text-zinc-300" />
-                  <span>حفظ فقط</span>
+                  <span>{t.canvas.saveOnly}</span>
                 </button>
               </div>
 
@@ -216,21 +218,21 @@ export const CustomThoughtNode: React.FC<NodeProps> = memo(({ id, data, selected
                 type="button"
                 className="px-2 py-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 text-[11px] transition-colors"
               >
-                إلغاء
+                {t.common.cancel}
               </button>
             </div>
           </div>
         ) : isGenerating && !nodeData.content ? (
           <div className="flex items-center gap-2 text-zinc-400 py-3">
             <Sparkles className="w-4 h-4 animate-spin text-zinc-100" />
-            <span className="text-xs">Generating thoughtful response...</span>
+            <span className="text-xs">{t.canvas.generating}</span>
           </div>
         ) : isError ? (
           <div className="p-3 rounded-xl bg-zinc-900 border border-rose-800/80 text-rose-300 text-xs flex flex-col gap-2">
             <div className="flex items-start gap-2">
               <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5 text-rose-400" />
               <div>
-                <p className="font-semibold text-rose-200">Generation Notice</p>
+                <p className="font-semibold text-rose-200">{t.canvas.generationNotice}</p>
                 <p className="text-[11px] text-rose-300/90 mt-0.5 leading-relaxed">
                   {nodeData.error || 'Failed to generate response'}
                 </p>
@@ -246,13 +248,11 @@ export const CustomThoughtNode: React.FC<NodeProps> = memo(({ id, data, selected
                 }}
                 type="button"
                 className="flex items-center gap-1 px-2.5 py-1 rounded bg-zinc-100 hover:bg-white text-zinc-950 text-[11px] font-semibold transition-colors shadow-sm"
-                title="Retry using high-availability fast model"
+                title={t.canvas.retryFast}
               >
                 <Sparkles className="w-3 h-3 text-zinc-950" />
                 <span>
-                  {nodeData.modelUsed?.includes('deepseek') || nodeData.modelUsed?.includes('/')
-                    ? 'Retry with DeepSeek V3'
-                    : 'Retry with 2.5 Flash'}
+                  {t.canvas.retryFast}
                 </span>
               </button>
 
@@ -265,7 +265,7 @@ export const CustomThoughtNode: React.FC<NodeProps> = memo(({ id, data, selected
                 className="flex items-center gap-1 px-2.5 py-1 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white border border-zinc-700 text-[11px] font-medium transition-colors"
               >
                 <RotateCw className="w-3 h-3 text-zinc-400" />
-                <span>Retry</span>
+                <span>{t.common.retry}</span>
               </button>
             </div>
           </div>
@@ -385,9 +385,10 @@ export const CustomThoughtNode: React.FC<NodeProps> = memo(({ id, data, selected
           }}
           type="button"
           className="flex-1 flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-lg bg-zinc-900 hover:bg-zinc-800 text-zinc-200 hover:text-white border border-zinc-800 text-xs font-medium transition-colors"
+          title={t.canvas.forkBranch}
         >
           <GitFork className="w-3.5 h-3.5 text-zinc-300 transform -rotate-90" />
-          <span>Fork Branch</span>
+          <span>{t.canvas.forkBranch}</span>
         </button>
 
         <button
@@ -398,12 +399,13 @@ export const CustomThoughtNode: React.FC<NodeProps> = memo(({ id, data, selected
           type="button"
           className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-lg text-xs font-medium border transition-colors ${
             isSelectedForMerge
-              ? 'bg-purple-900/40 border-purple-500 text-purple-200'
+              ? 'bg-zinc-800 border-zinc-500 text-white font-semibold'
               : 'bg-zinc-900 hover:bg-zinc-800 text-zinc-300 hover:text-white border-zinc-800'
           }`}
+          title={isSelectedForMerge ? t.canvas.removeFromMerge : t.canvas.pickForMerge}
         >
           <Merge className="w-3.5 h-3.5 text-zinc-300" />
-          <span>{isSelectedForMerge ? 'Selected' : 'Merge Pick'}</span>
+          <span>{isSelectedForMerge ? t.canvas.removeFromMerge : t.canvas.pickForMerge}</span>
         </button>
       </div>
 

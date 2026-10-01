@@ -9,6 +9,7 @@ import {
 import type { ThoughtFlowNode, ModelOption } from '../../types/graph';
 import { ModelSelector } from '../settings/ModelSelector';
 import { getModelBadgeInfo } from '../../utils/formatters';
+import { useLanguage } from '../../i18n/useLanguage';
 
 interface MergeModalProps {
   isOpen: boolean;
@@ -35,6 +36,7 @@ export const MergeModal: React.FC<MergeModalProps> = ({
   onConfirmMerge,
   isGenerating,
 }) => {
+  const { t } = useLanguage();
   const [modelId, setModelId] = useState(defaultMergeModel);
   const [synthesisPrompt, setSynthesisPrompt] = useState(SYNTHESIS_TEMPLATES[0]);
 
@@ -57,19 +59,20 @@ export const MergeModal: React.FC<MergeModalProps> = ({
             </div>
             <div>
               <h2 className="font-semibold text-sm sm:text-base text-zinc-100 flex items-center gap-2">
-                Multi-Branch Synthesis (Merge)
+                {t.merge.title}
                 <span className="text-[11px] px-2 py-0.5 rounded-full bg-zinc-800 text-zinc-200 border border-zinc-700 font-mono">
-                  {selectedNodes.length} Branches Selected
+                  {selectedNodes.length} {t.merge.selectedBranches}
                 </span>
               </h2>
               <p className="text-xs text-zinc-400">
-                Fuse disparate thought trajectories into a unified resolution node.
+                {t.merge.subtitle}
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
             className="text-zinc-400 hover:text-white p-1 rounded-lg hover:bg-zinc-850 transition-colors"
+            title={t.common.close}
           >
             <X className="w-5 h-5" />
           </button>
@@ -173,7 +176,7 @@ export const MergeModal: React.FC<MergeModalProps> = ({
             onClick={onClose}
             className="px-4 py-2 rounded-xl text-xs font-medium text-zinc-400 hover:text-white hover:bg-zinc-900 transition-colors"
           >
-            Cancel
+            {t.common.cancel}
           </button>
           <button
             type="button"
@@ -184,11 +187,11 @@ export const MergeModal: React.FC<MergeModalProps> = ({
             {isGenerating ? (
               <>
                 <Sparkles className="w-4 h-4 animate-spin text-zinc-950" />
-                <span>Synthesizing Paths...</span>
+                <span>{t.promptBar.branching}</span>
               </>
             ) : (
               <>
-                <span>Generate Synthesis</span>
+                <span>{t.merge.executeMerge}</span>
                 <ArrowRight className="w-3.5 h-3.5" />
               </>
             )}

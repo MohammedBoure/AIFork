@@ -8,8 +8,11 @@ import { SettingsDrawer } from './components/settings/SettingsDrawer';
 import { ExportImportModal } from './components/modals/ExportImportModal';
 import { TemplatesModal } from './components/modals/TemplatesModal';
 import { NodeDetailModal } from './components/modals/NodeDetailModal';
+import { SessionsModal } from './components/modals/SessionsModal';
 import { FocusFlowModal } from './components/focus/FocusFlowModal';
 import { ToastContainer } from './components/ui/Toast';
+import { LanguageProvider } from './i18n/LanguageContext';
+import { useLanguage } from './i18n/useLanguage';
 
 export function ThoughtGraphApp() {
   const {
@@ -37,6 +40,7 @@ export function ThoughtGraphApp() {
     handleCloseFocusFlow,
 
     // Modals
+    isSessionsOpen,
     isSettingsOpen,
     setIsSettingsOpen,
     isExportOpen,
@@ -47,6 +51,18 @@ export function ThoughtGraphApp() {
     setIsMergeModalOpen,
     inspectedNodeId,
     setInspectedNodeId,
+
+    // Sessions
+    sessions,
+    currentSessionId,
+    currentSessionTitle,
+    handleOpenSessions,
+    handleCloseSessions,
+    handleSwitchSession,
+    handleCreateSession,
+    handleDeleteSession,
+    handleDuplicateSession,
+    handleRenameSession,
 
     // Actions
     handleForkNode,
@@ -66,12 +82,14 @@ export function ThoughtGraphApp() {
     setShowMinimap,
   } = useGraphState();
 
+  const { dir } = useLanguage();
+
   const selectedForMergeNodes = nodes.filter((n) =>
     selectedForMergeIds.includes(n.id)
   );
 
   return (
-    <div className="flex flex-col w-screen h-screen overflow-hidden bg-black text-zinc-100">
+    <div className="flex flex-col w-screen h-screen overflow-hidden bg-black text-zinc-100" dir={dir}>
       {/* Top Navigation */}
       <Navbar
         nodeCount={nodes.length}
@@ -85,6 +103,9 @@ export function ThoughtGraphApp() {
             : settings.apiKey && settings.apiKey.trim().length > 0
         )}
         selectedForMergeCount={selectedForMergeIds.length}
+        sessionCount={sessions.length}
+        currentSessionTitle={currentSessionTitle}
+        onOpenSessions={handleOpenSessions}
         onOpenSettings={() => setIsSettingsOpen(true)}
         onOpenExport={() => setIsExportOpen(true)}
         onOpenTemplates={() => setIsTemplatesOpen(true)}
@@ -119,6 +140,7 @@ export function ThoughtGraphApp() {
           onClearMergeSelection={handleClearMergeSelection}
           onNewGenesisThought={handleClearParent}
           onOpenTemplates={() => setIsTemplatesOpen(true)}
+          onOpenSessions={handleOpenSessions}
           onBatchDelete={handleBatchDelete}
         />
 
@@ -198,6 +220,19 @@ export function ThoughtGraphApp() {
         )}
       />
 
+      {/* Graph Sessions & History Modal */}
+      <SessionsModal
+        isOpen={isSessionsOpen}
+        onClose={handleCloseSessions}
+        sessions={sessions}
+        currentSessionId={currentSessionId}
+        onSwitchSession={handleSwitchSession}
+        onCreateSession={handleCreateSession}
+        onDeleteSession={handleDeleteSession}
+        onDuplicateSession={handleDuplicateSession}
+        onRenameSession={handleRenameSession}
+      />
+
       {/* System Toast Notifications */}
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
     </div>
@@ -206,8 +241,10 @@ export function ThoughtGraphApp() {
 
 export default function App() {
   return (
-    <ReactFlowProvider>
-      <ThoughtGraphApp />
-    </ReactFlowProvider>
+    <LanguageProvider>
+      <ReactFlowProvider>
+        <ThoughtGraphApp />
+      </ReactFlowProvider>
+    </LanguageProvider>
   );
 }

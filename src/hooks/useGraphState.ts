@@ -18,12 +18,22 @@ import type {
   AppSettings,
   SerializedGraph,
   ModelOption,
+  GraphSessionMeta,
+  GraphSession,
 } from '../types/graph';
 import {
-  saveGraphState,
-  loadGraphState,
   loadSettings,
   saveSettings,
+  loadSessionsIndex,
+  loadSession,
+  saveSession,
+  createSession,
+  deleteSession,
+  duplicateSession,
+  renameSession,
+  getActiveSessionId,
+  setActiveSessionId,
+  extractPreviewText,
 } from '../services/storage';
 import { STARTER_TEMPLATES } from '../services/mockData';
 import { getLayoutedElements, calculateChildPosition } from '../utils/dagLayout';
@@ -43,16 +53,29 @@ export function useGraphState() {
     getPresetModelsForProvider(settings.provider)
   );
 
-  // Initialize graph from saved state or starter template
-  const initialData = loadGraphState() || STARTER_TEMPLATES.ai_architecture;
+  // Load sessions index (will auto-migrate legacy graph if needed)
+  const [sessions, setSessions] = useState<GraphSessionMeta[]>(() => loadSessionsIndex());
+
+  // Determine active session ID
+  const [currentSessionId, setCurrentSessionId] = useState<string>(() => {
+    const activeId = getActiveSessionId();
+    if (activeId && loadSession(activeId)) return activeId;
+    const initialIndex = loadSessionsIndex();
+    if (initialIndex.length > 0 && loadSession(initialIndex[0].id)) return initialIndex[0].id;
+    const newSess = createSession('جلسة الأفكار الأولية (Initial Graph)', STARTER_TEMPLATES.ai_architecture);
+    return newSess.id;
+  });
+
+  const activeSessionData = loadSession(currentSessionId) || createSession();
+  const [currentSessionTitle, setCurrentSessionTitle] = useState<string>(activeSessionData.title);
 
   const [nodes, setNodes] = useState<ThoughtFlowNode[]>(() =>
-    JSON.parse(JSON.stringify(initialData.nodes))
+    JSON.parse(JSON.stringify(activeSessionData.nodes))
   );
   const [edges, setEdges] = useState<ThoughtFlowEdge[]>(() =>
-    JSON.parse(JSON.stringify(initialData.edges))
+    JSON.parse(JSON.stringify(activeSessionData.edges))
   );
-  const [activeParentId, setActiveParentId] = useState<string | null>(initialData.activeParentId || null);
+  const [activeParentId, setActiveParentId] = useState<string | null>(activeSessionData.activeParentId || null);
   const [selectedForMergeIds, setSelectedForMergeIds] = useState<string[]>([]);
 
   // Focus Flow (Full View as Conversation) State
@@ -65,6 +88,7 @@ export function useGraphState() {
   const [isGenerating, setIsGenerating] = useState(false);
 
   // Modal states
+  const [isSessionsOpen, setIsSessionsOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isExportOpen, setIsExportOpen] = useState(false);
   const [isTemplatesOpen, setIsTemplatesOpen] = useState(false);
@@ -93,10 +117,22 @@ export function useGraphState() {
       .catch(() => {});
   }, [provider, apiKey, openRouterApiKey]);
 
-  // Persist graph changes to localStorage
+  // Persist current session changes to localStorage
   useEffect(() => {
-    saveGraphState(nodes, edges, activeParentId);
-  }, [nodes, edges, activeParentId]);
+    const sessionToSave: GraphSession = {
+      id: currentSessionId,
+      title: currentSessionTitle,
+      nodeCount: nodes.length,
+      edgeCount: edges.length,
+      createdAt: activeSessionData.createdAt || Date.now(),
+      updatedAt: Date.now(),
+      previewText: extractPreviewText(nodes),
+      nodes,
+      edges,
+      activeParentId,
+    };
+    saveSession(sessionToSave);
+  }, [currentSessionId, currentSessionTitle, nodes, edges, activeParentId, activeSessionData.createdAt]);
 
   // Node changes
   const onNodesChange: OnNodesChange<ThoughtFlowNode> = useCallback((changes: NodeChange<ThoughtFlowNode>[]) => {
@@ -218,11 +254,98 @@ export function useGraphState() {
     addToast('success', `Loaded "${graph.title}".`);
   }, [addToast]);
 
-  // Reset Canvas to Blank
+  // Reset Canvas to Blank (or create fresh session)
   const handleResetCanvas = useCallback(() => {
     handleLoadGraph(STARTER_TEMPLATES.blank_canvas);
-    addToast('info', 'Canvas reset to new blank workspace.');
+    addToast('info', 'تمت تهيئة الكانفاس لمساحة عمل فارغة جديدة.');
   }, [handleLoadGraph, addToast]);
+
+  // Switch to another session
+  const handleSwitchSession = useCallback((sessionId: string) => {
+    const targetSession = loadSession(sessionId);
+    if (!targetSession) {
+      addToast('error', 'تعذر العثور على بيانات الجلسة المطلوبة.');
+      return;
+    }
+
+    setCurrentSessionId(targetSession.id);
+    setCurrentSessionTitle(targetSession.title);
+    setNodes(JSON.parse(JSON.stringify(targetSession.nodes)));
+    setEdges(JSON.parse(JSON.stringify(targetSession.edges)));
+    setActiveParentId(targetSession.activeParentId || null);
+    setSelectedForMergeIds([]);
+    setActiveSessionId(targetSession.id);
+    addToast('info', `تم الانتقال إلى: "${targetSession.title}".`);
+  }, [addToast]);
+
+  // Create a new session
+  const handleCreateSession = useCallback(
+    (title?: string, initialData?: { nodes: ThoughtFlowNode[]; edges: ThoughtFlowEdge[]; activeParentId?: string | null }) => {
+      const newSession = createSession(title, initialData);
+      setSessions(loadSessionsIndex());
+      handleSwitchSession(newSession.id);
+      addToast('success', 'تم إنشاء جلسة أفكار جديدة بنجاح.');
+      return newSession.id;
+    },
+    [handleSwitchSession, addToast]
+  );
+
+  // Delete a session
+  const handleDeleteSession = useCallback((sessionId: string) => {
+    const wasActive = sessionId === currentSessionId;
+    const success = deleteSession(sessionId);
+    if (!success) {
+      addToast('error', 'تعذر مسح الجلسة.');
+      return;
+    }
+
+    const updatedIndex = loadSessionsIndex();
+    setSessions(updatedIndex);
+
+    if (wasActive) {
+      if (updatedIndex.length > 0) {
+        handleSwitchSession(updatedIndex[0].id);
+      } else {
+        const fresh = createSession('جلسة أفكار جديدة (New Canvas)');
+        setSessions(loadSessionsIndex());
+        handleSwitchSession(fresh.id);
+      }
+    }
+    addToast('info', 'تم مسح الجلسة بنجاح.');
+  }, [currentSessionId, handleSwitchSession, addToast]);
+
+  // Duplicate a session
+  const handleDuplicateSession = useCallback((sessionId: string) => {
+    const dup = duplicateSession(sessionId);
+    if (!dup) {
+      addToast('error', 'تعذر تكرار الجلسة.');
+      return;
+    }
+    setSessions(loadSessionsIndex());
+    addToast('success', `تم تكرار الجلسة باسم: "${dup.title}".`);
+  }, [addToast]);
+
+  // Rename a session
+  const handleRenameSession = useCallback((sessionId: string, newTitle: string) => {
+    const success = renameSession(sessionId, newTitle);
+    if (success) {
+      if (sessionId === currentSessionId) {
+        setCurrentSessionTitle(newTitle);
+      }
+      setSessions(loadSessionsIndex());
+      addToast('success', 'تم تعديل اسم الجلسة بنجاح.');
+    }
+  }, [currentSessionId, addToast]);
+
+  // Open and close sessions modal with live index refresh
+  const handleOpenSessions = useCallback(() => {
+    setSessions(loadSessionsIndex());
+    setIsSessionsOpen(true);
+  }, []);
+
+  const handleCloseSessions = useCallback(() => {
+    setIsSessionsOpen(false);
+  }, []);
 
   /**
    * Core Branching Execution:
@@ -706,7 +829,9 @@ export function useGraphState() {
     handleOpenFocusFlow,
     handleCloseFocusFlow,
 
-    // Modals
+    // Modals & Panels
+    isSessionsOpen,
+    setIsSessionsOpen,
     isSettingsOpen,
     setIsSettingsOpen,
     isExportOpen,
@@ -717,6 +842,18 @@ export function useGraphState() {
     setIsMergeModalOpen,
     inspectedNodeId,
     setInspectedNodeId,
+
+    // Session Management
+    sessions,
+    currentSessionId,
+    currentSessionTitle,
+    handleOpenSessions,
+    handleCloseSessions,
+    handleSwitchSession,
+    handleCreateSession,
+    handleDeleteSession,
+    handleDuplicateSession,
+    handleRenameSession,
 
     // Actions
     handleForkNode,

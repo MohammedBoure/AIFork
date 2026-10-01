@@ -43,6 +43,7 @@ interface ThoughtCanvasProps {
   onClearMergeSelection: () => void;
   onNewGenesisThought: () => void;
   onOpenTemplates: () => void;
+  onOpenSessions?: () => void;
   onBatchDelete: (nodeIds: string[]) => void;
 }
 
@@ -69,6 +70,7 @@ export const ThoughtCanvas: React.FC<ThoughtCanvasProps> = ({
   onClearMergeSelection,
   onNewGenesisThought,
   onOpenTemplates,
+  onOpenSessions,
   onBatchDelete,
 }) => {
   // Context Menu State
@@ -257,6 +259,7 @@ export const ThoughtCanvas: React.FC<ThoughtCanvasProps> = ({
           onAutoLayout={onAutoLayout}
           onFitView={() => onAutoLayout(layoutDirection)}
           onOpenTemplates={onOpenTemplates}
+          onOpenSessions={onOpenSessions}
           isSelectedForMerge={
             Boolean(contextMenu.nodeId && selectedForMergeIds.includes(contextMenu.nodeId))
           }

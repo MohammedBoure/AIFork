@@ -9,8 +9,11 @@ import {
   KeyRound,
   Merge,
   MessageSquare,
+  Layers,
+  Languages,
 } from 'lucide-react';
 import { Badge } from './Badge';
+import { useLanguage } from '../../i18n/useLanguage';
 
 interface NavbarProps {
   nodeCount: number;
@@ -20,6 +23,9 @@ interface NavbarProps {
   hasApiKey: boolean;
   provider?: string;
   selectedForMergeCount: number;
+  sessionCount?: number;
+  currentSessionTitle?: string;
+  onOpenSessions: () => void;
   onOpenSettings: () => void;
   onOpenExport: () => void;
   onOpenTemplates: () => void;
@@ -37,6 +43,9 @@ export const Navbar: React.FC<NavbarProps> = ({
   hasApiKey,
   provider = 'openrouter',
   selectedForMergeCount,
+  sessionCount = 1,
+  currentSessionTitle,
+  onOpenSessions,
   onOpenSettings,
   onOpenExport,
   onOpenTemplates,
@@ -45,6 +54,8 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenMergeModal,
   onOpenFocusFlow,
 }) => {
+  const { t, language, toggleLanguage } = useLanguage();
+
   return (
     <header className="h-14 border-b border-zinc-800/90 bg-zinc-950/90 backdrop-blur-md px-4 flex items-center justify-between z-30 select-none">
       {/* Brand & Stats */}
@@ -68,17 +79,17 @@ export const Navbar: React.FC<NavbarProps> = ({
         <div className="hidden md:flex items-center gap-2 pl-2 border-l border-zinc-800 text-xs text-zinc-400">
           <span className="flex items-center gap-1">
             <span className="w-1.5 h-1.5 rounded-full bg-zinc-300"></span>
-            <span>{nodeCount} Nodes</span>
+            <span>{nodeCount} {t.navbar.nodesCount}</span>
           </span>
           <span className="text-zinc-600">•</span>
-          <span>{edgeCount} Branches</span>
+          <span>{edgeCount} {t.navbar.branchesCount}</span>
         </div>
 
         {/* Active Fork Indicator */}
         {activeParentTitle && (
           <div className="hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-zinc-900 border border-zinc-800 text-xs text-zinc-200">
             <GitFork className="w-3 h-3 text-zinc-400 transform -rotate-90" />
-            <span className="text-zinc-500">Forking from:</span>
+            <span className="text-zinc-500">{t.navbar.forkingFrom}</span>
             <span className="font-medium max-w-[180px] truncate text-white">
               {activeParentTitle}
             </span>
@@ -104,7 +115,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-100 hover:bg-white text-zinc-950 text-xs font-semibold shadow-md transition-all animate-pulse"
           >
             <Merge className="w-3.5 h-3.5" />
-            <span>Merge ({selectedForMergeCount})</span>
+            <span>{t.navbar.mergeSelected} ({selectedForMergeCount})</span>
           </button>
         )}
 
@@ -113,58 +124,86 @@ export const Navbar: React.FC<NavbarProps> = ({
           <button
             onClick={() => onOpenFocusFlow(activeParentId)}
             className="hidden sm:flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-zinc-300 hover:text-white hover:bg-zinc-900 text-xs transition-colors border border-zinc-800"
-            title="Focus on active branch as conversation"
+            title={t.navbar.focusFlow}
           >
             <MessageSquare className="w-3.5 h-3.5 text-zinc-100" />
-            <span>Focus Flow</span>
+            <span>{t.navbar.focusFlow}</span>
           </button>
         )}
+
+        {/* Graph Sessions / History Button */}
+        <button
+          onClick={onOpenSessions}
+          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-zinc-900 hover:bg-zinc-800 text-zinc-100 hover:text-white text-xs transition-colors border border-zinc-700/80 shadow-sm"
+          title={t.sessions.title}
+        >
+          <Layers className="w-3.5 h-3.5 text-zinc-200" />
+          <span className="font-semibold max-w-[130px] truncate hidden sm:inline">
+            {currentSessionTitle || t.navbar.sessions}
+          </span>
+          <span className="text-[10px] px-1.5 py-0.2 rounded-full font-mono bg-zinc-800 text-zinc-300 border border-zinc-700">
+            {sessionCount}
+          </span>
+        </button>
 
         {/* Auto Layout */}
         <button
           onClick={onAutoLayout}
           className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-zinc-300 hover:text-white hover:bg-zinc-900 text-xs transition-colors border border-zinc-800"
-          title="Auto-organize DAG layout"
+          title={t.navbar.autoLayout}
         >
           <LayoutGrid className="w-3.5 h-3.5 text-zinc-400" />
-          <span className="hidden sm:inline">Auto Layout</span>
+          <span className="hidden sm:inline">{t.navbar.autoLayout}</span>
         </button>
 
         {/* Starter Templates */}
         <button
           onClick={onOpenTemplates}
           className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-zinc-300 hover:text-white hover:bg-zinc-900 text-xs transition-colors border border-zinc-800"
-          title="Load pre-built thought graphs"
+          title={t.navbar.templates}
         >
           <FileText className="w-3.5 h-3.5 text-zinc-400" />
-          <span className="hidden sm:inline">Templates</span>
+          <span className="hidden sm:inline">{t.navbar.templates}</span>
         </button>
 
         {/* Export / Import */}
         <button
           onClick={onOpenExport}
           className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-zinc-300 hover:text-white hover:bg-zinc-900 text-xs transition-colors border border-zinc-800"
-          title="Export JSON, Markdown, or Import"
+          title={t.navbar.export}
         >
           <Download className="w-3.5 h-3.5 text-zinc-400" />
-          <span className="hidden sm:inline">Export</span>
+          <span className="hidden sm:inline">{t.navbar.export}</span>
         </button>
 
         {/* Reset */}
         <button
           onClick={onResetCanvas}
           className="p-1.5 rounded-lg text-zinc-400 hover:text-rose-400 hover:bg-zinc-900 transition-colors border border-zinc-800"
-          title="Clear canvas"
+          title={t.navbar.reset}
         >
           <RotateCcw className="w-3.5 h-3.5" />
         </button>
 
         <div className="h-5 w-[1px] bg-zinc-800 mx-1"></div>
 
+        {/* Language Switcher (AR <-> EN) */}
+        <button
+          onClick={toggleLanguage}
+          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-zinc-900 hover:bg-zinc-800 text-zinc-200 hover:text-white text-xs transition-colors border border-zinc-800 font-medium"
+          title={language === 'ar' ? t.common.switchToEn : t.common.switchToAr}
+        >
+          <Languages className="w-3.5 h-3.5 text-zinc-300" />
+          <span className="font-semibold uppercase text-[11px] tracking-wider">
+            {language === 'ar' ? 'English' : 'عربي'}
+          </span>
+        </button>
+
         {/* API Status Pill */}
         <button
           onClick={onOpenSettings}
           className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-zinc-900 border border-zinc-800 hover:border-zinc-700 transition-all text-xs"
+          title={t.navbar.settings}
         >
           {hasApiKey ? (
             <Badge variant="secondary" className="px-1.5 py-0 bg-zinc-800 text-white border-zinc-700">
@@ -174,7 +213,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           ) : (
             <Badge variant="secondary" className="px-1.5 py-0 bg-zinc-900 text-zinc-400 border-zinc-800">
               <KeyRound className="w-2.5 h-2.5 mr-1 text-zinc-400" />
-              Demo Mode
+              {t.navbar.demoMode}
             </Badge>
           )}
           <Settings className="w-3.5 h-3.5 text-zinc-400 hover:text-white" />

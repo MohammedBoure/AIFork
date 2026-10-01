@@ -43,11 +43,23 @@ Instead of traditional linear chat interfaces, **ThoughtGraph AI** treats conver
 - **Fetch Available Models** dynamically populates the model selector directly from Google's API.
 - **Built-in Demo / Simulator Mode:** Try out branching and synthesis immediately even without an API key.
 
-### 6. Persistence & Serialization
-- Real-time auto-saving to `localStorage`.
-- **JSON Export / Import** for sharing graphs or backing up ideation sessions.
-- **Markdown Export** to generate human-readable project summaries or branch reports.
-- Starter templates including the **AI Architecture Decision Tree**.
+### 6. Graph Sessions & History Manager 🗂️
+- Comprehensive session manager to save, organize, and switch between multiple thought graphs.
+- **Instant Creation & Search:** Create new sessions with a single click and filter saved sessions by title or content in real time.
+- **Inline Renaming & Duplication:** Rename graphs inline and duplicate complex branching structures for experiments.
+- **Export & Delete Safety:** Export any session to JSON, with deletion confirmation dialogs.
+- **Isolated Storage:** Each session safely persists its nodes, edges, active fork parent, and metadata under dedicated keys in `localStorage`.
+
+### 7. Bilingual Arabic & English Support (i18n) 🌍
+- Full native support for **Arabic (العربية)** and **English**.
+- **Instant Toggle:** One-click language switcher in the Navbar and dedicated settings in the Settings Drawer.
+- **Bidirectional Typography:** Dynamic document synchronization (`dir="rtl"` / `dir="ltr"` and `lang="ar"` / `lang="en"`) with Cairo Arabic font and bidi-aware text editing.
+- **Complete UI Coverage:** All navigation controls, node badges, menus, prompts, modals, and tooltips are localized.
+
+### 8. Inline Prompt Editing & Focus Flow
+- Edit any user thought prompt directly within its canvas node or inside the linear **Focus Flow** conversation stream.
+- Re-run AI generation automatically on edit or save text only.
+- Strict isolation prevents prompt changes on one branch from altering sibling branches.
 
 ---
 
@@ -63,20 +75,24 @@ AIFork/
 │   ├── components/         # UI components
 │   │   ├── canvas/         # React Flow canvas, custom nodes, custom edges
 │   │   │   └── README.md
+│   │   ├── focus/          # Linear conversation Focus Flow modal
+│   │   │   └── README.md
 │   │   ├── prompt/         # Fork prompt bar, merge modal
 │   │   │   └── README.md
 │   │   ├── settings/       # Settings drawer, model selector
 │   │   │   └── README.md
-│   │   ├── modals/         # Export/Import, templates, node detail inspector
+│   │   ├── modals/         # Sessions modal, Export/Import, templates, inspector
 │   │   │   └── README.md
 │   │   ├── ui/             # Navbar, code blocks, badges, toasts
 │   │   │   └── README.md
 │   │   └── README.md
 │   ├── hooks/              # Custom React state hooks (useGraphState)
 │   │   └── README.md
-│   ├── services/           # Gemini API caller, storage persistence, templates
+│   ├── i18n/               # Internationalization dictionary & LanguageContext
 │   │   └── README.md
-│   ├── types/              # TypeScript data interfaces (ThoughtNodeData)
+│   ├── services/           # OpenRouter/DeepSeek, Gemini, session storage, templates
+│   │   └── README.md
+│   ├── types/              # TypeScript data interfaces (ThoughtNodeData, sessions)
 │   │   └── README.md
 │   ├── utils/              # Context resolution, dagre layout, formatters
 │   │   └── README.md

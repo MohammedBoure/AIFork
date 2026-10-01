@@ -1,9 +1,20 @@
-import type { SerializedGraph, AppSettings, ThoughtFlowNode, ThoughtFlowEdge } from '../types/graph';
+import type {
+  SerializedGraph,
+  AppSettings,
+  ThoughtFlowNode,
+  ThoughtFlowEdge,
+  GraphSessionMeta,
+  GraphSession,
+} from '../types/graph';
 import { getBranchAncestors } from '../utils/contextResolver';
+import { STARTER_TEMPLATES } from './mockData';
 
 const STORAGE_KEYS = {
   GRAPH: 'thoughtgraph_ai_active_graph',
   SETTINGS: 'thoughtgraph_ai_settings',
+  SESSIONS_INDEX: 'thoughtgraph_ai_sessions_index',
+  ACTIVE_SESSION_ID: 'thoughtgraph_ai_active_session_id',
+  SESSION_PREFIX: 'thoughtgraph_ai_session_',
 };
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -77,6 +88,235 @@ export function loadGraphState(): SerializedGraph | null {
     console.error('Failed to load graph state:', err);
     return null;
   }
+}
+
+/**
+ * Extract a human-readable preview from the initial user thought
+ */
+export function extractPreviewText(nodes: ThoughtFlowNode[]): string {
+  const firstUserNode = nodes.find((n) => n.data.role === 'user');
+  const target = firstUserNode || nodes[0];
+  if (!target || !target.data?.content) return 'جلسة فارغة جديدة...';
+  return target.data.content.slice(0, 100).replace(/\s+/g, ' ');
+}
+
+/**
+ * Get active session ID
+ */
+export function getActiveSessionId(): string | null {
+  try {
+    return localStorage.getItem(STORAGE_KEYS.ACTIVE_SESSION_ID);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Set active session ID
+ */
+export function setActiveSessionId(sessionId: string): void {
+  try {
+    localStorage.setItem(STORAGE_KEYS.ACTIVE_SESSION_ID, sessionId);
+  } catch (err) {
+    console.error('Failed to set active session ID:', err);
+  }
+}
+
+/**
+ * Load the sessions index list, migrating existing active graph if first time
+ */
+export function loadSessionsIndex(): GraphSessionMeta[] {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEYS.SESSIONS_INDEX);
+    if (raw) {
+      const parsed = JSON.parse(raw) as GraphSessionMeta[];
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return parsed.sort((a, b) => b.updatedAt - a.updatedAt);
+      }
+    }
+
+    // First time migration: convert existing active graph into the initial session
+    const existingActive = loadGraphState();
+    const initialSessionId = `session-${Date.now()}`;
+    const initialNodes = existingActive?.nodes || STARTER_TEMPLATES.ai_architecture.nodes;
+    const initialEdges = existingActive?.edges || STARTER_TEMPLATES.ai_architecture.edges;
+    const initialParent = existingActive?.activeParentId ?? (initialNodes[0]?.id || null);
+    const initialTitle = existingActive?.title || 'جلسة الأفكار الأولية (Initial Graph)';
+
+    const initialSession: GraphSession = {
+      id: initialSessionId,
+      title: initialTitle,
+      nodeCount: initialNodes.length,
+      edgeCount: initialEdges.length,
+      createdAt: existingActive?.createdAt || Date.now(),
+      updatedAt: existingActive?.updatedAt || Date.now(),
+      previewText: extractPreviewText(initialNodes),
+      nodes: initialNodes,
+      edges: initialEdges,
+      activeParentId: initialParent,
+    };
+
+    saveSession(initialSession);
+    setActiveSessionId(initialSessionId);
+
+    return [{
+      id: initialSession.id,
+      title: initialSession.title,
+      nodeCount: initialSession.nodeCount,
+      edgeCount: initialSession.edgeCount,
+      createdAt: initialSession.createdAt,
+      updatedAt: initialSession.updatedAt,
+      previewText: initialSession.previewText,
+    }];
+  } catch (err) {
+    console.error('Failed to load sessions index:', err);
+    return [];
+  }
+}
+
+/**
+ * Load a full graph session by ID
+ */
+export function loadSession(sessionId: string): GraphSession | null {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEYS.SESSION_PREFIX + sessionId);
+    if (!raw) return null;
+    return JSON.parse(raw) as GraphSession;
+  } catch (err) {
+    console.error(`Failed to load session ${sessionId}:`, err);
+    return null;
+  }
+}
+
+/**
+ * Save a session and update its index metadata
+ */
+export function saveSession(session: GraphSession): void {
+  try {
+    // 1. Save session payload
+    localStorage.setItem(STORAGE_KEYS.SESSION_PREFIX + session.id, JSON.stringify(session));
+
+    // 2. Update index
+    const rawIndex = localStorage.getItem(STORAGE_KEYS.SESSIONS_INDEX);
+    let index: GraphSessionMeta[] = [];
+    if (rawIndex) {
+      try {
+        index = JSON.parse(rawIndex);
+      } catch {
+        index = [];
+      }
+    }
+
+    const meta: GraphSessionMeta = {
+      id: session.id,
+      title: session.title,
+      nodeCount: session.nodes.length,
+      edgeCount: session.edges.length,
+      createdAt: session.createdAt,
+      updatedAt: session.updatedAt || Date.now(),
+      previewText: extractPreviewText(session.nodes),
+    };
+
+    const existingIdx = index.findIndex((s) => s.id === session.id);
+    if (existingIdx >= 0) {
+      index[existingIdx] = meta;
+    } else {
+      index.unshift(meta);
+    }
+
+    localStorage.setItem(STORAGE_KEYS.SESSIONS_INDEX, JSON.stringify(index));
+
+    // 3. Keep active graph backup for backward compatibility
+    saveGraphState(session.nodes, session.edges, session.activeParentId, session.title);
+  } catch (err) {
+    console.error(`Failed to save session ${session.id}:`, err);
+  }
+}
+
+/**
+ * Create a brand new session
+ */
+export function createSession(
+  title?: string,
+  initialData?: { nodes: ThoughtFlowNode[]; edges: ThoughtFlowEdge[]; activeParentId?: string | null }
+): GraphSession {
+  const timestamp = Date.now();
+  const id = `session-${timestamp}`;
+  const defaultTitle = title || `جلسة أفكار #${new Date(timestamp).toLocaleDateString('ar-EG', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}`;
+
+  const nodes = initialData?.nodes || [];
+  const edges = initialData?.edges || [];
+  const activeParentId = initialData?.activeParentId || (nodes[0]?.id ?? null);
+
+  const newSession: GraphSession = {
+    id,
+    title: defaultTitle,
+    nodeCount: nodes.length,
+    edgeCount: edges.length,
+    createdAt: timestamp,
+    updatedAt: timestamp,
+    previewText: extractPreviewText(nodes),
+    nodes,
+    edges,
+    activeParentId,
+  };
+
+  saveSession(newSession);
+  setActiveSessionId(id);
+  return newSession;
+}
+
+/**
+ * Delete a session by ID
+ */
+export function deleteSession(sessionId: string): boolean {
+  try {
+    localStorage.removeItem(STORAGE_KEYS.SESSION_PREFIX + sessionId);
+    const rawIndex = localStorage.getItem(STORAGE_KEYS.SESSIONS_INDEX);
+    if (rawIndex) {
+      const index = JSON.parse(rawIndex) as GraphSessionMeta[];
+      const filtered = index.filter((s) => s.id !== sessionId);
+      localStorage.setItem(STORAGE_KEYS.SESSIONS_INDEX, JSON.stringify(filtered));
+    }
+    return true;
+  } catch (err) {
+    console.error(`Failed to delete session ${sessionId}:`, err);
+    return false;
+  }
+}
+
+/**
+ * Duplicate a session
+ */
+export function duplicateSession(sessionId: string): GraphSession | null {
+  const original = loadSession(sessionId);
+  if (!original) return null;
+
+  const timestamp = Date.now();
+  const duplicatedId = `session-${timestamp}`;
+  const duplicated: GraphSession = {
+    ...JSON.parse(JSON.stringify(original)),
+    id: duplicatedId,
+    title: `${original.title} (نسخة)`,
+    createdAt: timestamp,
+    updatedAt: timestamp,
+  };
+
+  saveSession(duplicated);
+  return duplicated;
+}
+
+/**
+ * Rename a session
+ */
+export function renameSession(sessionId: string, newTitle: string): boolean {
+  const session = loadSession(sessionId);
+  if (!session) return false;
+
+  session.title = newTitle.trim() || session.title;
+  session.updatedAt = Date.now();
+  saveSession(session);
+  return true;
 }
 
 export function exportGraphToJson(graph: SerializedGraph): void {

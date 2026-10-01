@@ -18,6 +18,7 @@ import { getBranchAncestors } from '../../utils/contextResolver';
 import { CodeBlock } from '../ui/CodeBlock';
 import { ModelSelector } from '../settings/ModelSelector';
 import { formatTimestamp, copyToClipboard } from '../../utils/formatters';
+import { useLanguage } from '../../i18n/useLanguage';
 
 interface FocusFlowModalProps {
   isOpen: boolean;
@@ -42,6 +43,7 @@ export const FocusFlowModal: React.FC<FocusFlowModalProps> = ({
   availableModels,
   defaultModel,
 }) => {
+  const { t, isRTL, dir } = useLanguage();
   const [replyText, setReplyText] = useState('');
   const [selectedModel, setSelectedModel] = useState(defaultModel);
   const [copiedAll, setCopiedAll] = useState(false);
@@ -119,27 +121,27 @@ export const FocusFlowModal: React.FC<FocusFlowModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-zinc-950 text-zinc-100 animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-50 flex flex-col bg-zinc-950 text-zinc-100 animate-in fade-in duration-200" dir={dir}>
       {/* Top Header Bar */}
       <header className="h-14 border-b border-zinc-800 bg-zinc-950/90 backdrop-blur-md px-6 flex items-center justify-between select-none">
         <div className="flex items-center gap-3">
           <button
             onClick={onClose}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-900 border border-zinc-800 text-zinc-300 hover:text-white hover:bg-zinc-800 transition-colors text-xs font-medium"
-            title="Exit Full View (Esc)"
+            title={t.focusFlow.exitFocus}
           >
-            <ArrowLeft className="w-3.5 h-3.5" />
-            <span>خروج / Exit Focus View</span>
+            <ArrowLeft className={`w-3.5 h-3.5 ${isRTL ? 'transform rotate-180' : ''}`} />
+            <span>{t.focusFlow.exitFocus}</span>
             <kbd className="hidden sm:inline px-1.5 py-0.2 bg-zinc-800 rounded font-mono text-[10px] text-zinc-400">Esc</kbd>
           </button>
 
           <div className="hidden sm:flex items-center gap-2 pl-3 border-l border-zinc-800 text-xs">
             <span className="font-semibold text-white">
-              {leafNode?.data.branchLabel || 'Linear Conversation Flow'}
+              {leafNode?.data.branchLabel || t.focusFlow.linearFlow}
             </span>
             <span className="text-zinc-500">•</span>
             <span className="text-zinc-400 font-mono text-[11px]">
-              {branchNodes.length} {branchNodes.length === 1 ? 'Turn' : 'Turns'} from Genesis
+              {branchNodes.length} {t.common.turns} {t.focusFlow.fromGenesis}
             </span>
           </div>
         </div>
@@ -148,17 +150,17 @@ export const FocusFlowModal: React.FC<FocusFlowModalProps> = ({
           <button
             onClick={handleCopyFullFlow}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-900 border border-zinc-800 text-zinc-300 hover:text-white hover:bg-zinc-800 transition-colors text-xs"
-            title="Copy entire conversation path as Markdown"
+            title={t.focusFlow.copyFullFlow}
           >
             {copiedAll ? (
               <>
                 <Check className="w-3.5 h-3.5 text-zinc-100" />
-                <span>تم نسخ المحادثة</span>
+                <span>{t.focusFlow.copiedFlow}</span>
               </>
             ) : (
               <>
                 <Copy className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">نسخ المسار بالكامل</span>
+                <span className="hidden sm:inline">{t.focusFlow.copyFullFlow}</span>
               </>
             )}
           </button>
@@ -166,7 +168,7 @@ export const FocusFlowModal: React.FC<FocusFlowModalProps> = ({
           <button
             onClick={onClose}
             className="p-1.5 text-zinc-400 hover:text-white rounded-lg hover:bg-zinc-800 transition-colors"
-            title="Close"
+            title={t.common.close}
           >
             <X className="w-5 h-5" />
           </button>
@@ -203,7 +205,7 @@ export const FocusFlowModal: React.FC<FocusFlowModalProps> = ({
                       <button
                         onClick={() => handleCopyMessage(node.data.content, node.id)}
                         className="p-1 rounded text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors"
-                        title="نسخ نص السؤال / Copy Prompt"
+                        title={t.focusFlow.copyPrompt}
                       >
                         {isCurrentCopied ? (
                           <Check className="w-3 h-3 text-zinc-100" />
@@ -216,7 +218,7 @@ export const FocusFlowModal: React.FC<FocusFlowModalProps> = ({
                     <span className="text-[11px] text-zinc-500">
                       {formatTimestamp(node.data.createdAt)}
                     </span>
-                    <span className="font-medium text-zinc-200">You (Thought)</span>
+                    <span className="font-medium text-zinc-200">{t.common.you}</span>
                     <div className="w-6 h-6 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center">
                       <User className="w-3.5 h-3.5 text-zinc-300" />
                     </div>
@@ -227,7 +229,7 @@ export const FocusFlowModal: React.FC<FocusFlowModalProps> = ({
                       <Sparkles className="w-3.5 h-3.5 text-zinc-950" />
                     </div>
                     <span className="font-semibold text-zinc-100">
-                      {node.data.modelUsed?.includes('deepseek') ? 'DeepSeek AI' : 'Gemini AI'}
+                      {node.data.modelUsed?.includes('deepseek') ? 'DeepSeek AI' : node.data.modelUsed?.includes('gemini') ? 'Gemini AI' : t.common.ai}
                     </span>
                     {node.data.modelUsed && (
                       <span className="text-[10px] px-2 py-0.2 rounded-full font-mono bg-zinc-800 text-zinc-200 border border-zinc-700">
@@ -243,7 +245,7 @@ export const FocusFlowModal: React.FC<FocusFlowModalProps> = ({
                       <button
                         onClick={() => handleCopyMessage(node.data.content, node.id)}
                         className="p-1 rounded text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors"
-                        title="نسخ رد الذكاء الاصطناعي / Copy AI Response"
+                        title={t.focusFlow.copyResponse}
                       >
                         {isCurrentCopied ? (
                           <Check className="w-3 h-3 text-zinc-100" />
@@ -270,9 +272,9 @@ export const FocusFlowModal: React.FC<FocusFlowModalProps> = ({
                     <div className="flex items-center justify-between text-xs text-zinc-400 pb-1 border-b border-zinc-800">
                       <span className="font-semibold text-white flex items-center gap-1.5">
                         <Pencil className="w-3.5 h-3.5 text-zinc-300" />
-                        <span>تعديل الـ Prompt في المحادثة</span>
+                        <span>{t.focusFlow.editingInFlow}</span>
                       </span>
-                      <span className="text-[11px] text-zinc-500 font-mono">يدعم العربية / Markdown</span>
+                      <span className="text-[11px] text-zinc-500 font-mono">{t.focusFlow.editingHint}</span>
                     </div>
 
                     <textarea
@@ -281,7 +283,7 @@ export const FocusFlowModal: React.FC<FocusFlowModalProps> = ({
                       rows={4}
                       dir="auto"
                       className="w-full bg-zinc-950 border border-zinc-700 focus:border-zinc-300 rounded-xl p-3 text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none leading-relaxed resize-y font-sans transition-colors bidi-auto"
-                      placeholder="اكتب التعديل على السؤال أو الـ Prompt..."
+                      placeholder={t.canvas.editPromptPlaceholder}
                     />
 
                     <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
@@ -290,20 +292,20 @@ export const FocusFlowModal: React.FC<FocusFlowModalProps> = ({
                           onClick={() => handleSaveEdit(node.id, true)}
                           type="button"
                           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-100 hover:bg-white text-zinc-950 text-xs font-semibold transition-colors shadow-sm"
-                          title="حفظ الـ Prompt وإعادة توليد رد الذكاء الاصطناعي بناءً عليه"
+                          title={t.canvas.saveAndRerun}
                         >
                           <Sparkles className="w-3.5 h-3.5 text-zinc-950" />
-                          <span>حفظ وتوليد الرد مجدداً</span>
+                          <span>{t.canvas.saveAndRerun}</span>
                         </button>
 
                         <button
                           onClick={() => handleSaveEdit(node.id, false)}
                           type="button"
                           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 text-xs font-medium transition-colors"
-                          title="حفظ التعديل على النص فقط"
+                          title={t.canvas.saveOnly}
                         >
                           <Check className="w-3.5 h-3.5 text-zinc-300" />
-                          <span>حفظ فقط</span>
+                          <span>{t.canvas.saveOnly}</span>
                         </button>
                       </div>
 
@@ -312,7 +314,7 @@ export const FocusFlowModal: React.FC<FocusFlowModalProps> = ({
                         type="button"
                         className="px-3 py-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 text-xs transition-colors"
                       >
-                        إلغاء
+                        {t.common.cancel}
                       </button>
                     </div>
                   </div>
@@ -370,11 +372,11 @@ export const FocusFlowModal: React.FC<FocusFlowModalProps> = ({
           <div className="flex items-center justify-between text-xs">
             <span className="text-zinc-400 flex items-center gap-1 text-[11px]">
               <GitFork className="w-3.5 h-3.5 text-zinc-300 transform -rotate-90" />
-              <span>Continuing branch from Turn #{branchNodes.length}</span>
+              <span>{t.focusFlow.continueFlow} {branchNodes.length}</span>
             </span>
 
             <div className="flex items-center gap-1.5">
-              <span className="text-zinc-400 text-[11px] hidden sm:inline">Model:</span>
+              <span className="text-zinc-400 text-[11px] hidden sm:inline">{t.settings.defaultModel}:</span>
               <ModelSelector
                 selectedModel={selectedModel}
                 onChange={setSelectedModel}
@@ -398,7 +400,7 @@ export const FocusFlowModal: React.FC<FocusFlowModalProps> = ({
                   handleSendReply();
                 }
               }}
-              placeholder="اكتب فكرتك لمتابعة المحادثة... Continue thought flow (Enter للإرسال، Shift+Enter لسطر جديد)"
+              placeholder={t.focusFlow.replyPlaceholder}
               disabled={isGenerating}
               className="flex-1 bg-transparent resize-none text-xs sm:text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none leading-relaxed max-h-32 font-sans bidi-auto"
             />
@@ -411,11 +413,11 @@ export const FocusFlowModal: React.FC<FocusFlowModalProps> = ({
               {isGenerating ? (
                 <>
                   <Sparkles className="w-3.5 h-3.5 animate-spin" />
-                  <span>Thinking...</span>
+                  <span>{t.focusFlow.thinking}</span>
                 </>
               ) : (
                 <>
-                  <span>Reply</span>
+                  <span>{t.focusFlow.reply}</span>
                   <CornerDownLeft className="w-3.5 h-3.5" />
                 </>
               )}

@@ -12,6 +12,7 @@ import {
   Cpu,
   Layers,
   ExternalLink,
+  Languages,
 } from 'lucide-react';
 import type { AppSettings, ModelOption, AIProvider } from '../../types/graph';
 import { testGeminiApiKey, fetchAvailableGeminiModels, DEFAULT_PRESET_MODELS } from '../../services/gemini';
@@ -21,6 +22,7 @@ import {
   OPENROUTER_PRESET_MODELS,
 } from '../../services/openrouter';
 import { ModelSelector } from './ModelSelector';
+import { useLanguage } from '../../i18n/useLanguage';
 
 interface SettingsDrawerProps {
   isOpen: boolean;
@@ -39,6 +41,7 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
   availableModels,
   onUpdateAvailableModels,
 }) => {
+  const { t, language, setLanguage } = useLanguage();
   const [formState, setFormState] = useState<AppSettings>(settings);
   const [showKey, setShowKey] = useState(false);
   const [testStatus, setTestStatus] = useState<{
@@ -155,11 +158,12 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
         <div className="px-6 py-4 border-b border-zinc-800 flex items-center justify-between bg-zinc-950">
           <div className="flex items-center gap-2">
             <Sliders className="w-5 h-5 text-zinc-100" />
-            <h2 className="font-semibold text-base text-zinc-100">ThoughtGraph Settings</h2>
+            <h2 className="font-semibold text-base text-zinc-100">{t.settings.title}</h2>
           </div>
           <button
             onClick={onClose}
             className="text-zinc-400 hover:text-white p-1 rounded-lg hover:bg-zinc-900 transition-colors"
+            title={t.common.close}
           >
             <X className="w-5 h-5" />
           </button>
@@ -444,6 +448,42 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
               </select>
             </div>
           </div>
+
+          {/* Interface Language Preferences */}
+          <div className="space-y-3 pt-4 border-t border-zinc-850">
+            <h3 className="font-semibold text-xs uppercase tracking-wider text-zinc-400 flex items-center gap-1.5">
+              <Languages className="w-3.5 h-3.5 text-zinc-300" />
+              <span>{t.settings.uiLanguage}</span>
+            </h3>
+
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setLanguage('ar')}
+                className={`p-2.5 rounded-xl border text-xs flex flex-col items-center gap-1 text-center transition-all ${
+                  language === 'ar'
+                    ? 'bg-zinc-100 text-zinc-950 font-bold border-white shadow-md'
+                    : 'bg-zinc-900 border-zinc-850 text-zinc-400 hover:text-zinc-200 hover:border-zinc-700'
+                }`}
+              >
+                <span className="font-bold">العربية (Arabic)</span>
+                <span className="text-[10px] opacity-75">اتجاه اليمين لليسار (RTL)</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setLanguage('en')}
+                className={`p-2.5 rounded-xl border text-xs flex flex-col items-center gap-1 text-center transition-all ${
+                  language === 'en'
+                    ? 'bg-zinc-100 text-zinc-950 font-bold border-white shadow-md'
+                    : 'bg-zinc-900 border-zinc-850 text-zinc-400 hover:text-zinc-200 hover:border-zinc-700'
+                }`}
+              >
+                <span className="font-bold">English (US)</span>
+                <span className="text-[10px] opacity-75">Left-to-Right (LTR)</span>
+              </button>
+            </div>
+          </div>
         </div>
 
         {/* Footer Actions */}
@@ -453,14 +493,14 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
             onClick={onClose}
             className="px-4 py-2 rounded-lg text-xs font-medium text-zinc-400 hover:text-white hover:bg-zinc-900 transition-colors"
           >
-            Cancel
+            {t.common.cancel}
           </button>
           <button
             type="button"
             onClick={handleSave}
             className="px-4 py-2 rounded-lg text-xs font-semibold bg-zinc-100 hover:bg-white text-zinc-950 transition-colors shadow-md"
           >
-            Save Settings
+            {t.settings.saveSettings}
           </button>
         </div>
       </div>

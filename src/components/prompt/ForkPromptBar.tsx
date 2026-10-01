@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import type { ModelOption } from '../../types/graph';
 import { ModelSelector } from '../settings/ModelSelector';
+import { useLanguage } from '../../i18n/useLanguage';
 
 interface ForkPromptBarProps {
   activeParentTitle?: string | null;
@@ -19,13 +20,6 @@ interface ForkPromptBarProps {
   defaultModel: string;
 }
 
-const PROMPT_SUGGESTIONS = [
-  '⚡ Explore an alternative approach',
-  '⚖️ Analyze pros, cons, and trade-offs',
-  '🔍 Identify potential edge cases & risks',
-  '🛠️ Break down concrete implementation steps',
-];
-
 export const ForkPromptBar: React.FC<ForkPromptBarProps> = ({
   activeParentTitle,
   activeParentId,
@@ -35,9 +29,17 @@ export const ForkPromptBar: React.FC<ForkPromptBarProps> = ({
   availableModels,
   defaultModel,
 }) => {
+  const { t } = useLanguage();
   const [prompt, setPrompt] = useState('');
   const [selectedModel, setSelectedModel] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const promptSuggestions = [
+    t.promptBar.suggestionAlternative,
+    t.promptBar.suggestionTradeoffs,
+    t.promptBar.suggestionEdgeCases,
+    t.promptBar.suggestionSteps,
+  ];
 
   const activeModel = selectedModel ?? defaultModel;
 
@@ -66,7 +68,7 @@ export const ForkPromptBar: React.FC<ForkPromptBarProps> = ({
             {activeParentId ? (
               <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-zinc-900 border border-zinc-700/80 text-zinc-200">
                 <GitFork className="w-3.5 h-3.5 text-zinc-300 transform -rotate-90 flex-shrink-0" />
-                <span className="text-zinc-400 text-[11px]">Branching off:</span>
+                <span className="text-zinc-400 text-[11px]">{t.promptBar.branchingOff}</span>
                 <span className="font-medium max-w-[220px] sm:max-w-xs truncate text-zinc-100">
                   {activeParentTitle || `Node ${activeParentId.slice(0, 8)}`}
                 </span>
@@ -74,7 +76,7 @@ export const ForkPromptBar: React.FC<ForkPromptBarProps> = ({
                   type="button"
                   onClick={onClearParent}
                   className="ml-1 p-0.5 text-zinc-400 hover:text-white rounded hover:bg-zinc-800"
-                  title="Branch off root canvas instead"
+                  title="Clear Parent"
                 >
                   <X className="w-3 h-3" />
                 </button>
@@ -82,14 +84,14 @@ export const ForkPromptBar: React.FC<ForkPromptBarProps> = ({
             ) : (
               <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-zinc-900 border border-zinc-800 text-zinc-400">
                 <Sparkles className="w-3.5 h-3.5 text-zinc-300" />
-                <span className="text-[11px]">Genesis Thought (Root Node)</span>
+                <span className="text-[11px]">{t.promptBar.genesisThought}</span>
               </div>
             )}
           </div>
 
           {/* Granular Per-Fork Model Selector */}
           <div className="flex items-center gap-1.5">
-            <span className="text-[11px] text-zinc-400 hidden sm:inline">Model for this branch:</span>
+            <span className="text-[11px] text-zinc-400 hidden sm:inline">{t.promptBar.modelForBranch}</span>
             <ModelSelector
               selectedModel={activeModel}
               onChange={setSelectedModel}
@@ -110,8 +112,8 @@ export const ForkPromptBar: React.FC<ForkPromptBarProps> = ({
             onKeyDown={handleKeyDown}
             placeholder={
               activeParentId
-                ? 'طوّر هذه الفكرة، أو اعترض على الافتراضات، أو اقترح مساراً جديداً... (Expand branch)'
-                : 'ابدأ فكرة أو مساراً جديداً... (Start new thought graph)'
+                ? t.promptBar.expandPlaceholder
+                : t.promptBar.startPlaceholder
             }
             disabled={isGenerating}
             className="flex-1 bg-transparent resize-none text-xs sm:text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none leading-relaxed max-h-36 overflow-y-auto font-sans bidi-auto"
@@ -126,11 +128,11 @@ export const ForkPromptBar: React.FC<ForkPromptBarProps> = ({
             {isGenerating ? (
               <>
                 <Sparkles className="w-4 h-4 animate-spin text-zinc-950" />
-                <span className="hidden sm:inline">Branching...</span>
+                <span className="hidden sm:inline">{t.promptBar.branching}</span>
               </>
             ) : (
               <>
-                <span>Send</span>
+                <span>{t.promptBar.send}</span>
                 <CornerDownLeft className="w-3.5 h-3.5" />
               </>
             )}
@@ -143,7 +145,7 @@ export const ForkPromptBar: React.FC<ForkPromptBarProps> = ({
             <Lightbulb className="w-3 h-3 text-zinc-300" />
             <span>Starters:</span>
           </span>
-          {PROMPT_SUGGESTIONS.map((suggestion) => (
+          {promptSuggestions.map((suggestion) => (
             <button
               key={suggestion}
               type="button"
