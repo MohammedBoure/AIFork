@@ -239,7 +239,7 @@ export function getOpenRouterFallbackModels(primaryModel: string): string[] {
 }
 
 /**
- * Helper to execute a single OpenRouter chat completion call
+ * Helper to execute a single OpenRouter chat completion call with real-time SSE streaming
  */
 async function callOpenRouterEndpoint(
   endpointModel: string,
@@ -251,6 +251,7 @@ async function callOpenRouterEndpoint(
   onStreamChunk?: (chunkText: string, fullAccumulatedText: string) => void
 ): Promise<GenerateAIResult> {
   const url = `${OPENROUTER_API_BASE_URL}/chat/completions`;
+  const isStreaming = Boolean(onStreamChunk);
 
   const formattedMessages: OpenRouterChatMessage[] = [];
   if (systemInstruction && systemInstruction.trim().length > 0) {
@@ -266,6 +267,7 @@ async function callOpenRouterEndpoint(
     messages: formattedMessages,
     temperature,
     max_tokens: maxOutputTokens,
+    stream: isStreaming,
   };
 
   const response = await fetch(url, {
@@ -291,6 +293,116 @@ async function callOpenRouterEndpoint(
     throw error;
   }
 
+  // Handle Real-time Streaming for OpenRouter
+  if (isStreaming && response.body && onStreamChunk) {
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder('utf-8');
+    let buffer = '';
+    let accumulatedContent = '';
+    let accumulatedReasoning = '';
+    let usage: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number } | undefined = undefined;
+
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() ?? '';
+
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (!trimmed.startsWith('data:')) continue;
+          const jsonStr = trimmed.replace(/^data:\s*/, '');
+          if (jsonStr === '[DONE]') continue;
+
+          try {
+            const parsed = JSON.parse(jsonStr);
+            const choice = parsed.choices?.[0];
+            const delta = choice?.delta;
+            const deltaContent = delta?.content || '';
+            const deltaReasoning = delta?.reasoning_content || delta?.reasoning || '';
+
+            if (deltaReasoning) {
+              accumulatedReasoning += deltaReasoning;
+            }
+            if (deltaContent) {
+              accumulatedContent += deltaContent;
+            }
+
+            let fullFormatted = accumulatedContent;
+            if (accumulatedReasoning.trim().length > 0) {
+              fullFormatted = `> **DeepSeek Reasoning Process:**\n> ${accumulatedReasoning.trim().replace(/\n/g, '\n> ')}\n\n${accumulatedContent.trim()}`;
+            }
+
+            if (deltaContent || deltaReasoning) {
+              onStreamChunk(deltaContent || deltaReasoning, fullFormatted);
+            }
+
+            if (parsed.usage) {
+              usage = parsed.usage;
+            }
+          } catch {
+            // Buffer chunk incomplete, keep processing
+          }
+        }
+      }
+
+      // Flush remaining line in buffer
+      if (buffer.trim().startsWith('data:')) {
+        const jsonStr = buffer.trim().replace(/^data:\s*/, '');
+        if (jsonStr !== '[DONE]') {
+          try {
+            const parsed = JSON.parse(jsonStr);
+            const choice = parsed.choices?.[0];
+            const delta = choice?.delta;
+            const deltaContent = delta?.content || '';
+            const deltaReasoning = delta?.reasoning_content || delta?.reasoning || '';
+
+            if (deltaReasoning) accumulatedReasoning += deltaReasoning;
+            if (deltaContent) accumulatedContent += deltaContent;
+
+            let fullFormatted = accumulatedContent;
+            if (accumulatedReasoning.trim().length > 0) {
+              fullFormatted = `> **DeepSeek Reasoning Process:**\n> ${accumulatedReasoning.trim().replace(/\n/g, '\n> ')}\n\n${accumulatedContent.trim()}`;
+            }
+
+            if (deltaContent || deltaReasoning) {
+              onStreamChunk(deltaContent || deltaReasoning, fullFormatted);
+            }
+            if (parsed.usage) {
+              usage = parsed.usage;
+            }
+          } catch {
+            // ignore
+          }
+        }
+      }
+    } finally {
+      reader.releaseLock();
+    }
+
+    let fullFormatted = accumulatedContent;
+    if (accumulatedReasoning.trim().length > 0) {
+      fullFormatted = `> **DeepSeek Reasoning Process:**\n> ${accumulatedReasoning.trim().replace(/\n/g, '\n> ')}\n\n${accumulatedContent.trim()}`;
+    }
+
+    return {
+      text: fullFormatted.trim(),
+      actualModelUsed: endpointModel,
+      reasoningContent: accumulatedReasoning || undefined,
+      tokens: usage
+        ? {
+            promptTokens: usage.prompt_tokens,
+            candidatesTokens: usage.completion_tokens,
+            totalTokens: usage.total_tokens,
+          }
+        : undefined,
+    };
+  }
+
+  // Non-streaming fallback
   const result = await response.json();
   const choice = result.choices?.[0];
   const choiceMessage = choice?.message;

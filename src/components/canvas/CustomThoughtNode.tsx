@@ -364,6 +364,12 @@ export const CustomThoughtNode: React.FC<NodeProps> = memo(
             >
               {nodeData.content}
             </ReactMarkdown>
+            {isGenerating && Boolean(nodeData.content) && (
+              <div className="inline-flex items-center gap-1.5 mt-2 text-zinc-500 dark:text-zinc-400 font-mono text-[10px]">
+                <span className="w-1.5 h-3.5 bg-zinc-800 dark:bg-zinc-200 animate-pulse rounded-xs inline-block align-middle" />
+                <span className="animate-pulse">{t.canvas.streaming}</span>
+              </div>
+            )}
           </div>
         )}
       </div>

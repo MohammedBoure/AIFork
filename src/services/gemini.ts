@@ -149,7 +149,7 @@ export interface GenerateGeminiResult {
 }
 
 /**
- * Helper to execute a direct call to a specific model endpoint
+ * Helper to execute a direct call to a specific model endpoint with real-time SSE streaming
  */
 async function callGeminiEndpoint(
   endpointModel: string,
@@ -158,7 +158,9 @@ async function callGeminiEndpoint(
   onStreamChunk?: (chunkText: string, fullAccumulatedText: string) => void
 ): Promise<GenerateGeminiResult> {
   const cleanModel = endpointModel.replace('models/', '');
-  const url = `${GEMINI_API_BASE_URL}/models/${cleanModel}:generateContent?key=${apiKey.trim()}`;
+  const isStreaming = Boolean(onStreamChunk);
+  const action = isStreaming ? 'streamGenerateContent?alt=sse&key=' : 'generateContent?key=';
+  const url = `${GEMINI_API_BASE_URL}/models/${cleanModel}:${action}${apiKey.trim()}`;
 
   const response = await fetch(url, {
     method: 'POST',
@@ -179,6 +181,87 @@ async function callGeminiEndpoint(
     throw error;
   }
 
+  // Handle Real-time SSE Streaming
+  if (isStreaming && response.body && onStreamChunk) {
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder('utf-8');
+    let buffer = '';
+    let accumulatedText = '';
+    let usage: { promptTokenCount?: number; candidatesTokenCount?: number; totalTokenCount?: number } | undefined = undefined;
+
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() ?? '';
+
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (!trimmed.startsWith('data:')) continue;
+          const jsonStr = trimmed.replace(/^data:\s*/, '');
+          if (jsonStr === '[DONE]') continue;
+
+          try {
+            const parsed = JSON.parse(jsonStr);
+            const candidate = parsed.candidates?.[0];
+            const chunkText =
+              candidate?.content?.parts?.map((p: { text?: string }) => p.text || '').join('') || '';
+
+            if (chunkText) {
+              accumulatedText += chunkText;
+              onStreamChunk(chunkText, accumulatedText);
+            }
+
+            if (parsed.usageMetadata) {
+              usage = parsed.usageMetadata;
+            }
+          } catch {
+            // Buffer chunk was partial, will be resolved with next lines
+          }
+        }
+      }
+
+      // Flush remaining line in buffer
+      if (buffer.trim().startsWith('data:')) {
+        const jsonStr = buffer.trim().replace(/^data:\s*/, '');
+        try {
+          const parsed = JSON.parse(jsonStr);
+          const candidate = parsed.candidates?.[0];
+          const chunkText =
+            candidate?.content?.parts?.map((p: { text?: string }) => p.text || '').join('') || '';
+
+          if (chunkText) {
+            accumulatedText += chunkText;
+            onStreamChunk(chunkText, accumulatedText);
+          }
+          if (parsed.usageMetadata) {
+            usage = parsed.usageMetadata;
+          }
+        } catch {
+          // ignore
+        }
+      }
+    } finally {
+      reader.releaseLock();
+    }
+
+    return {
+      text: accumulatedText.trim(),
+      actualModelUsed: cleanModel,
+      tokens: usage
+        ? {
+            promptTokens: usage.promptTokenCount,
+            candidatesTokens: usage.candidatesTokenCount,
+            totalTokens: usage.totalTokenCount,
+          }
+        : undefined,
+    };
+  }
+
+  // Standard non-streaming fallback
   const result = await response.json();
   const candidate = result.candidates?.[0];
   const text = candidate?.content?.parts?.map((p: { text?: string }) => p.text || '').join('') || '';
@@ -191,11 +274,13 @@ async function callGeminiEndpoint(
   return {
     text: text.trim(),
     actualModelUsed: cleanModel,
-    tokens: usage ? {
-      promptTokens: usage.promptTokenCount,
-      candidatesTokens: usage.candidatesTokenCount,
-      totalTokens: usage.totalTokenCount,
-    } : undefined,
+    tokens: usage
+      ? {
+          promptTokens: usage.promptTokenCount,
+          candidatesTokens: usage.candidatesTokenCount,
+          totalTokens: usage.totalTokenCount,
+        }
+      : undefined,
   };
 }
 

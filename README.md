@@ -88,6 +88,13 @@ Instead of traditional linear chat interfaces, **ThoughtGraph AI** treats conver
 - **Node Inline Edit Preview:** Preview prompt edits right on the canvas node card before saving or re-running.
 - **Arabic & Code Isolation:** Native bidirectional support (`dir="auto"`, `unicode-bidi: plaintext`, Cairo font), full selectable text, and strict LTR isolation for PrismJS code blocks.
 
+### 13. Real-Time Token Streaming (البث الفوري للردود) ⚡
+- **Instant Token-by-Token Rendering:** Responses stream and render word-by-word as they arrive from the AI provider, eliminating wait times.
+- **Server-Sent Events (SSE) Protocol:** True streaming over HTTP using Gemini's `:streamGenerateContent?alt=sse` and OpenRouter's OpenAI-compatible SSE streaming (`stream: true`).
+- **Live Visual Typing Indicator:** Pulsating streaming cursor and live status banner on both canvas nodes and linear Focus Flow chat bubbles.
+- **Auto-Follow Scrolling:** Real-time auto-scroll in Focus Flow conversation stream following newly arrived tokens smoothly.
+- **Resilient Fallback:** Seamless continuation on network fluctuations and automatic fallback cascades.
+
 ---
 
 ## 🏗️ Directory Architecture

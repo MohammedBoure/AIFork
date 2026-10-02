@@ -60,12 +60,12 @@ export const FocusFlowModal: React.FC<FocusFlowModalProps> = ({
   const branchNodes = targetNodeId ? getBranchAncestors(targetNodeId, nodesMap) : [];
   const leafNode = branchNodes[branchNodes.length - 1];
 
-  // Auto-scroll to latest message on open or when nodes update
+  // Auto-scroll to latest message on open or when nodes update or live tokens stream in
   useEffect(() => {
     if (isOpen) {
       chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' });
     }
-  }, [isOpen, branchNodes.length, isGenerating]);
+  }, [isOpen, branchNodes.length, isGenerating, leafNode?.data.content]);
 
   // Handle escape key to exit
   useEffect(() => {
@@ -407,6 +407,12 @@ export const FocusFlowModal: React.FC<FocusFlowModalProps> = ({
                     >
                       {node.data.content}
                     </ReactMarkdown>
+                    {node.data.status === 'generating' && Boolean(node.data.content) && (
+                      <div className="inline-flex items-center gap-1.5 mt-2 text-zinc-400 font-mono text-[11px]">
+                        <span className="w-1.5 h-3.5 bg-zinc-200 animate-pulse rounded-xs inline-block align-middle" />
+                        <span className="text-[10px] animate-pulse">{t.canvas.streaming}</span>
+                      </div>
+                    )}
                   </div>
                 )}
 
