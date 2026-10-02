@@ -180,10 +180,10 @@ export const ThoughtCanvas: React.FC<ThoughtCanvasProps> = ({
         type: MarkerType.ArrowClosed,
         width: 14,
         height: 14,
-        color: '#71717a',
+        color: theme === 'light' ? '#64748b' : '#71717a',
       },
     }),
-    []
+    [theme]
   );
 
   const actionsContextValue = useMemo(
@@ -198,6 +198,7 @@ export const ThoughtCanvas: React.FC<ThoughtCanvasProps> = ({
       onUpdateNodeContent,
       selectedForMergeIds,
       activeParentId,
+      theme,
     }),
     [
       onForkNode,
@@ -210,6 +211,7 @@ export const ThoughtCanvas: React.FC<ThoughtCanvasProps> = ({
       onUpdateNodeContent,
       selectedForMergeIds,
       activeParentId,
+      theme,
     ]
   );
 
@@ -250,7 +252,11 @@ export const ThoughtCanvas: React.FC<ThoughtCanvasProps> = ({
 
   return (
     <NodeActionsProvider value={actionsContextValue}>
-      <div className="relative w-full h-[calc(100vh-3.5rem)] overflow-hidden bg-zinc-50 dark:bg-black select-none">
+      <div
+        className={`relative w-full h-[calc(100vh-3.5rem)] overflow-hidden select-none transition-colors duration-200 ${
+          theme === 'light' ? 'light bg-slate-50 text-zinc-900' : 'dark bg-black text-zinc-100'
+        }`}
+      >
         <ReactFlow
           nodes={nodes}
           edges={edges}
@@ -260,6 +266,11 @@ export const ThoughtCanvas: React.FC<ThoughtCanvasProps> = ({
           nodeTypes={nodeTypes}
           edgeTypes={edgeTypes}
           defaultEdgeOptions={defaultEdgeOptions}
+          colorMode={theme === 'light' ? 'light' : 'dark'}
+          className={theme === 'light' ? 'light' : 'dark'}
+          style={{
+            backgroundColor: theme === 'light' ? '#f8fafc' : '#000000',
+          }}
           fitView
           minZoom={0.15}
           maxZoom={2}
@@ -281,7 +292,11 @@ export const ThoughtCanvas: React.FC<ThoughtCanvasProps> = ({
             variant={BackgroundVariant.Dots}
             gap={24}
             size={1.5}
-            color={theme === 'light' ? '#cbd5e1' : '#27272a'}
+            color={theme === 'light' ? '#94a3b8' : '#3f3f46'}
+            bgColor={theme === 'light' ? '#f8fafc' : '#000000'}
+            style={{
+              backgroundColor: theme === 'light' ? '#f8fafc' : '#000000',
+            }}
           />
 
           {showMinimap && (

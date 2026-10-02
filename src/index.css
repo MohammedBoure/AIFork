@@ -1,5 +1,6 @@
 @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800&display=swap');
 @import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
 @import "@xyflow/react/dist/style.css";
 
 :root {
@@ -45,11 +46,35 @@ body,
 }
 
 /* React Flow custom styling - Monochrome & Light Edition */
+.react-flow,
+.react-flow__pane,
+.react-flow__viewport {
+  background-color: var(--background) !important;
+}
+
 .react-flow__background {
+  background-color: var(--background) !important;
+}
+
+html.dark .react-flow,
+html.dark .react-flow__pane,
+html.dark .react-flow__background,
+.dark .react-flow,
+.dark .react-flow__pane,
+.dark .react-flow__background,
+.dark.react-flow,
+.dark.react-flow .react-flow__background {
   background-color: #000000 !important;
 }
 
-.light .react-flow__background {
+html.light .react-flow,
+html.light .react-flow__pane,
+html.light .react-flow__background,
+.light .react-flow,
+.light .react-flow__pane,
+.light .react-flow__background,
+.light.react-flow,
+.light.react-flow .react-flow__background {
   background-color: #f8fafc !important;
 }
 
@@ -59,41 +84,66 @@ body,
   border-radius: 8px !important;
 }
 
+html.light .react-flow__selection,
 .light .react-flow__selection {
   background: rgba(0, 0, 0, 0.06) !important;
   border: 1px dashed rgba(0, 0, 0, 0.35) !important;
 }
 
 .react-flow__controls {
-  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.8), 0 8px 10px -6px rgba(0, 0, 0, 0.8);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.15), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+  border: 1px solid rgba(0, 0, 0, 0.1);
   border-radius: 12px;
   overflow: hidden;
-  background: rgba(9, 9, 11, 0.9);
+  background: rgba(255, 255, 255, 0.95);
   backdrop-filter: blur(12px);
+}
+
+.dark .react-flow__controls {
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.8), 0 8px 10px -6px rgba(0, 0, 0, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(9, 9, 11, 0.9);
 }
 
 .react-flow__controls-button {
   background: transparent !important;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
-  color: #a1a1aa !important;
-  fill: #a1a1aa !important;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06) !important;
+  color: #64748b !important;
+  fill: #64748b !important;
   transition: all 0.15s ease;
 }
 
+.dark .react-flow__controls-button {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+  color: #a1a1aa !important;
+  fill: #a1a1aa !important;
+}
+
 .react-flow__controls-button:hover {
+  background: rgba(0, 0, 0, 0.05) !important;
+  color: #09090b !important;
+  fill: #09090b !important;
+}
+
+.dark .react-flow__controls-button:hover {
   background: rgba(255, 255, 255, 0.1) !important;
   color: #ffffff !important;
   fill: #ffffff !important;
 }
 
 .react-flow__minimap {
-  background-color: rgba(9, 9, 11, 0.9) !important;
+  background-color: rgba(255, 255, 255, 0.95) !important;
   backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  border: 1px solid rgba(0, 0, 0, 0.1) !important;
   border-radius: 12px !important;
-  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.8) !important;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.15) !important;
   overflow: hidden;
+}
+
+.dark .react-flow__minimap {
+  background-color: rgba(9, 9, 11, 0.9) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.8) !important;
 }
 
 /* Arabic Typography, Text Selection & Markdown styling */
@@ -146,9 +196,20 @@ code,
 .prose-custom h3,
 .prose-custom h4 {
   font-weight: 600;
-  color: #ffffff;
+  color: #18181b;
   margin-top: 0.75rem;
   margin-bottom: 0.35rem;
+}
+
+html.dark .prose-custom h1,
+html.dark .prose-custom h2,
+html.dark .prose-custom h3,
+html.dark .prose-custom h4,
+.dark .prose-custom h1,
+.dark .prose-custom h2,
+.dark .prose-custom h3,
+.dark .prose-custom h4 {
+  color: #ffffff;
 }
 
 .prose-custom h1 { font-size: 1.25rem; }
@@ -176,13 +237,20 @@ code,
 }
 
 .prose-custom code:not(pre code) {
-  background: rgba(39, 39, 42, 0.8);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(241, 245, 249, 0.9);
+  border: 1px solid rgba(203, 213, 225, 0.8);
   padding: 0.15rem 0.35rem;
   border-radius: 0.25rem;
   font-size: 0.8rem;
-  color: #f4f4f5;
+  color: #0f172a;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+html.dark .prose-custom code:not(pre code),
+.dark .prose-custom code:not(pre code) {
+  background: rgba(39, 39, 42, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #f4f4f5;
 }
 
 .prose-custom pre {
@@ -190,17 +258,28 @@ code,
   margin-bottom: 0.6rem;
   border-radius: 0.5rem;
   overflow-x: auto;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+html.dark .prose-custom pre,
+.dark .prose-custom pre {
   border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .prose-custom blockquote {
-  border-left: 3px solid #71717a;
+  border-left: 3px solid #94a3b8;
   padding-left: 0.75rem;
   margin-left: 0;
   margin-top: 0.5rem;
   margin-bottom: 0.5rem;
-  color: #a1a1aa;
+  color: #475569;
   font-style: italic;
+}
+
+html.dark .prose-custom blockquote,
+.dark .prose-custom blockquote {
+  border-left: 3px solid #71717a;
+  color: #a1a1aa;
 }
 
 .prose-custom table {
@@ -213,13 +292,26 @@ code,
 
 .prose-custom th,
 .prose-custom td {
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(0, 0, 0, 0.12);
   padding: 0.35rem 0.6rem;
 }
 
+html.dark .prose-custom th,
+html.dark .prose-custom td,
+.dark .prose-custom th,
+.dark .prose-custom td {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
 .prose-custom th {
-  background: rgba(39, 39, 42, 0.7);
+  background: rgba(241, 245, 249, 0.8);
   font-weight: 600;
+  color: #0f172a;
+}
+
+html.dark .prose-custom th,
+.dark .prose-custom th {
+  background: rgba(39, 39, 42, 0.7);
   color: #ffffff;
 }
 

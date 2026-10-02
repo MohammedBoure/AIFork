@@ -11,6 +11,7 @@ export interface NodeActionsContextValue {
   onUpdateNodeContent: (nodeId: string, newContent: string, regenerateChildren?: boolean) => void;
   selectedForMergeIds: string[];
   activeParentId: string | null;
+  theme?: 'dark' | 'light' | 'monochrome';
 }
 
 export const NodeActionsContext = createContext<NodeActionsContextValue | null>(null);

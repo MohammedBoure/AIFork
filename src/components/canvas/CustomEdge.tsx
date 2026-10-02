@@ -25,7 +25,7 @@ export const CustomEdge: React.FC<EdgeProps> = ({
   selected,
 }) => {
   const { t } = useLanguage();
-  const { onDeleteEdge } = useNodeActions();
+  const { onDeleteEdge, theme = 'dark' } = useNodeActions();
   const edgeType = (data as { edgeType?: string })?.edgeType || 'smoothstep';
   const isMergeEdge = (data as { isMergeEdge?: boolean })?.isMergeEdge || false;
 
@@ -61,12 +61,13 @@ export const CustomEdge: React.FC<EdgeProps> = ({
     });
   }
 
-  // Pure white when selected, purple for merge paths, zinc/silver for regular DAG edges
+  // In light theme, selected edge is dark zinc #09090b, in dark theme pure white #ffffff
+  const isLight = theme === 'light';
   const strokeColor = selected
-    ? '#ffffff'
+    ? (isLight ? '#09090b' : '#ffffff')
     : isMergeEdge
-    ? '#c084fc'
-    : '#71717a';
+    ? (isLight ? '#9333ea' : '#c084fc')
+    : (isLight ? '#64748b' : '#71717a');
 
   const strokeWidth = selected ? 2.8 : isMergeEdge ? 2.5 : 2;
 
@@ -77,7 +78,7 @@ export const CustomEdge: React.FC<EdgeProps> = ({
         id={`${id}-glow`}
         path={edgePath}
         style={{
-          stroke: selected ? '#ffffff' : strokeColor,
+          stroke: selected ? (isLight ? '#09090b' : '#ffffff') : strokeColor,
           strokeWidth: strokeWidth + (selected ? 8 : 4),
           strokeOpacity: selected ? 0.35 : 0.12,
           transition: 'all 0.2s ease',
@@ -119,7 +120,7 @@ export const CustomEdge: React.FC<EdgeProps> = ({
             className={`flex items-center justify-center rounded-full p-1 border transition-all duration-200 cursor-pointer ${
               selected
                 ? 'bg-rose-600 border-white text-white opacity-100 scale-110 shadow-lg ring-2 ring-rose-500/50'
-                : 'bg-zinc-950/95 hover:bg-rose-600 border-zinc-700 hover:border-white text-zinc-400 hover:text-white opacity-0 group-hover/edge-btn:opacity-100 hover:opacity-100 scale-90 hover:scale-110 shadow-md'
+                : 'bg-white dark:bg-zinc-950/95 hover:bg-rose-600 border-zinc-300 dark:border-zinc-700 hover:border-zinc-900 dark:hover:border-white text-zinc-600 dark:text-zinc-400 hover:text-white opacity-0 group-hover/edge-btn:opacity-100 hover:opacity-100 scale-90 hover:scale-110 shadow-md'
             }`}
             title={t.canvas.deleteRelationship || 'Delete Relationship'}
             aria-label="Delete relationship"

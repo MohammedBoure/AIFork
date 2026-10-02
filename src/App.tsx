@@ -95,7 +95,12 @@ export function ThoughtGraphApp() {
   );
 
   return (
-    <div className="flex flex-col w-screen h-screen overflow-hidden bg-zinc-50 dark:bg-black text-zinc-900 dark:text-zinc-100" dir={dir}>
+    <div
+      className={`flex flex-col w-screen h-screen overflow-hidden transition-colors duration-200 ${
+        theme === 'light' ? 'light bg-slate-50 text-zinc-900' : 'dark bg-black text-zinc-100'
+      }`}
+      dir={dir}
+    >
       {/* Top Navigation */}
       <Navbar
         nodeCount={nodes.length}
@@ -127,7 +132,11 @@ export function ThoughtGraphApp() {
       />
 
       {/* Main Interactive DAG Canvas */}
-      <main className="flex-1 relative overflow-hidden bg-zinc-50 dark:bg-black">
+      <main
+        className={`flex-1 relative overflow-hidden transition-colors duration-200 ${
+          theme === 'light' ? 'light bg-slate-50' : 'dark bg-black'
+        }`}
+      >
         <ThoughtCanvas
           nodes={nodes}
           edges={edges}
