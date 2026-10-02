@@ -150,7 +150,7 @@ export const MergeModal: React.FC<MergeModalProps> = ({
               value={synthesisPrompt}
               onChange={(e) => setSynthesisPrompt(e.target.value)}
               className="w-full bg-zinc-900 border border-zinc-700 rounded-xl p-3 text-xs text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-zinc-400 leading-relaxed"
-              placeholder="How should Gemini synthesize these paths?"
+              placeholder="How should the AI synthesize these paths?"
             />
 
             {/* Template Presets */}

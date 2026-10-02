@@ -76,7 +76,7 @@ export const NodeDetailModal: React.FC<NodeDetailModalProps> = ({
             <div>
               <div className="flex items-center gap-2">
                 <h2 className="font-semibold text-base text-white">
-                  {node.data.branchLabel || (isUser ? 'User Thought' : 'Gemini Thought Node')}
+                  {node.data.branchLabel || (isUser ? 'User Thought' : 'AI Thought Node')}
                 </h2>
                 {!isUser && node.data.modelUsed && (
                   <span className={`text-[10px] px-2 py-0.5 rounded font-mono border ${modelInfo.badgeClass}`}>

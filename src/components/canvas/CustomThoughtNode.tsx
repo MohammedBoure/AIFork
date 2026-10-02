@@ -19,6 +19,7 @@ import {
   RotateCw,
   Pencil,
   Eye,
+  Cpu,
 } from 'lucide-react';
 import type { ThoughtNodeData } from '../../types/graph';
 import { CodeBlock } from '../ui/CodeBlock';
@@ -71,6 +72,26 @@ export const CustomThoughtNode: React.FC<NodeProps> = memo(
     const isError = nodeData.status === 'error';
     const modelInfo = getModelBadgeInfo(nodeData.modelUsed);
 
+    const getAiRoleLabel = () => {
+      const model = (nodeData.modelUsed || '').toLowerCase();
+      if (model.includes('deepseek')) return 'DeepSeek AI';
+      if (model.includes('gemini')) return 'Gemini AI';
+      if (model.includes('claude')) return 'Claude AI';
+      if (model.includes('gpt') || model.includes('openai')) return 'OpenAI';
+      if (model.includes('llama')) return 'Llama AI';
+      if (model.includes('mistral')) return 'Mistral AI';
+      if (model.includes('qwen')) return 'Qwen AI';
+      if (model.includes('/')) {
+        const rawVendor = model.split('/')[0];
+        return `${rawVendor.charAt(0).toUpperCase() + rawVendor.slice(1)} AI`;
+      }
+      return t.common.ai || 'AI Assistant';
+    };
+
+    const aiRoleLabel = getAiRoleLabel();
+    const isDeepSeekOrOpenRouter =
+      (nodeData.modelUsed || '').includes('deepseek') || (nodeData.modelUsed || '').includes('/');
+
     const handleCopy = async (e: React.MouseEvent) => {
       e.stopPropagation();
       const success = await copyToClipboard(nodeData.content);
@@ -122,15 +143,15 @@ export const CustomThoughtNode: React.FC<NodeProps> = memo(
           {/* Role Badge */}
           {isUser ? (
             <Badge variant="secondary" icon={<User className="w-3 h-3 text-zinc-600 dark:text-zinc-300" />} className="bg-zinc-100 dark:bg-zinc-900 text-zinc-800 dark:text-zinc-200 border-zinc-300 dark:border-zinc-700">
-              User Thought
+              {t.common.you || 'User Thought'}
             </Badge>
           ) : nodeData.isMergeNode ? (
             <Badge variant="purple" icon={<Merge className="w-3 h-3 text-purple-600 dark:text-purple-300" />}>
               Synthesis Node
             </Badge>
           ) : (
-            <Badge variant="secondary" icon={<Sparkles className="w-3 h-3 text-white" />} className="bg-zinc-900 dark:bg-zinc-800 text-white border-zinc-700 dark:border-zinc-600">
-              Gemini AI
+            <Badge variant="secondary" icon={isDeepSeekOrOpenRouter ? <Cpu className="w-3 h-3 text-white" /> : <Sparkles className="w-3 h-3 text-white" />} className="bg-zinc-900 dark:bg-zinc-800 text-white border-zinc-700 dark:border-zinc-600">
+              {aiRoleLabel}
             </Badge>
           )}
 
@@ -384,7 +405,7 @@ export const CustomThoughtNode: React.FC<NodeProps> = memo(
             </span>
           )}
           {nodeData.tokens && (
-            <span className="flex items-center gap-1 font-mono text-[10px] text-zinc-500 dark:text-zinc-400" title="Gemini Token Usage">
+            <span className="flex items-center gap-1 font-mono text-[10px] text-zinc-500 dark:text-zinc-400" title="Token Usage">
               <Coins className="w-3 h-3 text-zinc-400 dark:text-zinc-500" />
               <span>{nodeData.tokens.totalTokens || nodeData.tokens.candidatesTokens} tokens</span>
             </span>

@@ -93,7 +93,7 @@ export const FocusFlowModal: React.FC<FocusFlowModalProps> = ({
     let text = `# Thought Flow: ${leafNode?.data.branchLabel || 'Conversation Branch'}\n\n`;
     branchNodes.forEach((node, i) => {
       const isUser = node.data.role === 'user';
-      text += `### Turn ${i + 1} (${isUser ? 'User' : `Gemini - ${node.data.modelUsed || 'AI'}`})\n\n`;
+      text += `### Turn ${i + 1} (${isUser ? 'User' : `${node.data.modelUsed || 'AI'}`})\n\n`;
       text += `${node.data.content}\n\n---\n\n`;
     });
 

@@ -36,7 +36,7 @@ export const BatchActionBar: React.FC<BatchActionBarProps> = ({
   const handleCopySelected = async () => {
     let text = `# ThoughtGraph AI: Batch Selection Export (${count} Nodes)\n\n`;
     selectedNodes.forEach((node, i) => {
-      const role = node.data.role === 'user' ? 'User Thought' : `Gemini AI (${node.data.modelUsed || 'AI'})`;
+      const role = node.data.role === 'user' ? 'User Thought' : `${node.data.modelUsed || 'AI'}`;
       text += `## ${i + 1}. ${node.data.branchLabel || role}\n\n`;
       text += `${node.data.content}\n\n---\n\n`;
     });
@@ -51,7 +51,7 @@ export const BatchActionBar: React.FC<BatchActionBarProps> = ({
   const handleDownloadMarkdown = () => {
     let text = `# ThoughtGraph AI: Batch Selection Export (${count} Nodes)\n\n`;
     selectedNodes.forEach((node, i) => {
-      const role = node.data.role === 'user' ? 'User Thought' : `Gemini AI (${node.data.modelUsed || 'AI'})`;
+      const role = node.data.role === 'user' ? 'User Thought' : `${node.data.modelUsed || 'AI'}`;
       text += `## ${i + 1}. ${node.data.branchLabel || role}\n\n`;
       text += `${node.data.content}\n\n---\n\n`;
     });

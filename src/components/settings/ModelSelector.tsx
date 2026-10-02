@@ -80,7 +80,7 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
           />
           <div className="absolute left-0 bottom-full mb-1 sm:bottom-auto sm:top-full sm:mt-1 z-50 w-72 sm:w-80 rounded-xl bg-zinc-950/95 border border-zinc-800 shadow-2xl backdrop-blur-xl p-1.5 text-xs animate-in fade-in zoom-in-95 duration-150">
             <div className="px-2.5 py-1.5 text-[10px] uppercase tracking-wider font-semibold text-zinc-400 border-b border-zinc-800 flex items-center justify-between">
-              <span>Select Gemini Model</span>
+              <span>Select AI Model</span>
               <Cpu className="w-3 h-3 text-zinc-400" />
             </div>
 
