@@ -5,6 +5,7 @@ export interface NodeActionsContextValue {
   onOpenFocusFlow: (nodeId: string) => void;
   onToggleMergeSelect: (nodeId: string) => void;
   onDeleteNode: (nodeId: string) => void;
+  onDeleteEdge?: (edgeId: string) => void;
   onInspectNode: (nodeId: string) => void;
   onRetryNode: (nodeId: string, overrideModelId?: string) => void;
   onUpdateNodeContent: (nodeId: string, newContent: string, regenerateChildren?: boolean) => void;

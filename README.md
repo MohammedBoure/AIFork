@@ -11,10 +11,13 @@ Instead of traditional linear chat interfaces, **ThoughtGraph AI** treats conver
 ### 1. Visual Node Canvas (DAG Interface)
 - Built on top of **React Flow** (`@xyflow/react`).
 - Full pan, zoom, fit-view, and interactive minimap.
-- Automated graph alignment with **Dagre** layout engine (supports both **Top-to-Bottom** and **Left-to-Right** orientations).
+- **Instant Automatic DAG Layout:** New nodes automatically snap into their mathematically optimal hierarchical position upon addition without requiring manual alignment triggers.
+- **Dynamic Adaptive Handles:** Node connection ports dynamically adapt orientation (Top/Bottom vs. Left/Right) matching the active graph orientation ('TB' vs 'LR') and connected nodes.
+- **Full Relationship Lifecycle:** Interactive 1-click edge deletion directly from the edge connector, manual edge drawing, strict DAG cycle loop prevention, and continuous `parentIds` context synchronization.
+- **Batch Node Deletion & Multi-Selection:** Marquee box selection, Shift-click, floating batch dock, context menu, and keyboard shortcuts (`Delete`/`Backspace`) to delete multiple nodes and relationships simultaneously.
 - Custom node UI displaying:
   - Role Badges (`User Thought` / `Gemini AI` / `Multi-Branch Synthesis`).
-  - Active Model Tag badge (e.g., `gemini-2.5-flash`, `gemini-2.5-pro`).
+  - Active Model Tag badge (DeepSeek V3, DeepSeek R1, Gemini 2.5, etc.).
   - Formatted Markdown with GitHub Flavored Markdown tables, lists, and quotes.
   - Syntax-highlighted code blocks with one-click clipboard copying.
   - Creation timestamp and Gemini token consumption metrics.

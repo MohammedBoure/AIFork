@@ -26,79 +26,86 @@ import { getModelBadgeInfo, formatTimestamp, copyToClipboard } from '../../utils
 import { useNodeActions } from './useNodeActions';
 import { useLanguage } from '../../i18n/useLanguage';
 
-export const CustomThoughtNode: React.FC<NodeProps> = memo(({ id, data, selected }) => {
-  const { t } = useLanguage();
-  const nodeData = data as unknown as ThoughtNodeData;
-  const {
-    onFork,
-    onOpenFocusFlow,
-    onToggleMergeSelect,
-    onDeleteNode,
-    onInspectNode,
-    onRetryNode,
-    onUpdateNodeContent,
-    selectedForMergeIds,
-    activeParentId,
-  } = useNodeActions();
+export const CustomThoughtNode: React.FC<NodeProps> = memo(
+  ({ id, data, selected, targetPosition, sourcePosition }) => {
+    const { t } = useLanguage();
+    const nodeData = data as unknown as ThoughtNodeData;
+    const {
+      onFork,
+      onOpenFocusFlow,
+      onToggleMergeSelect,
+      onDeleteNode,
+      onInspectNode,
+      onRetryNode,
+      onUpdateNodeContent,
+      selectedForMergeIds,
+      activeParentId,
+    } = useNodeActions();
 
-  const isSelectedForMerge = selectedForMergeIds.includes(id);
-  const isActiveForkParent = activeParentId === id;
+    const isSelectedForMerge = selectedForMergeIds.includes(id);
+    const isActiveForkParent = activeParentId === id;
 
-  const [copied, setCopied] = useState(false);
-  const [isEditing, setIsEditing] = useState(false);
-  const [editContent, setEditContent] = useState('');
+    // Detect horizontal Left-to-Right orientation
+    const isLR = targetPosition === Position.Left || sourcePosition === Position.Right;
 
-  const handleToggleEdit = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (!isEditing) {
-      setEditContent(nodeData.content || '');
-      setIsEditing(true);
-    } else {
-      setIsEditing(false);
-    }
-  };
+    const [copied, setCopied] = useState(false);
+    const [isEditing, setIsEditing] = useState(false);
+    const [editContent, setEditContent] = useState('');
 
-  const isUser = nodeData.role === 'user';
-  const isGenerating = nodeData.status === 'generating';
-  const isError = nodeData.status === 'error';
-  const modelInfo = getModelBadgeInfo(nodeData.modelUsed);
+    const handleToggleEdit = (e: React.MouseEvent) => {
+      e.stopPropagation();
+      if (!isEditing) {
+        setEditContent(nodeData.content || '');
+        setIsEditing(true);
+      } else {
+        setIsEditing(false);
+      }
+    };
 
-  const handleCopy = async (e: React.MouseEvent) => {
-    e.stopPropagation();
-    const success = await copyToClipboard(nodeData.content);
-    if (success) {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    }
-  };
+    const isUser = nodeData.role === 'user';
+    const isGenerating = nodeData.status === 'generating';
+    const isError = nodeData.status === 'error';
+    const modelInfo = getModelBadgeInfo(nodeData.modelUsed);
 
-  return (
-    <div
-      className={`group relative rounded-2xl w-[360px] sm:w-[380px] bg-zinc-950/95 border backdrop-blur-xl transition-all duration-200 shadow-2xl ${
-        selected
-          ? 'border-white ring-2 ring-white/30 shadow-white/10'
-          : isActiveForkParent
-          ? 'border-zinc-200 ring-4 ring-zinc-500/20 shadow-zinc-800/40'
-          : isSelectedForMerge
-          ? 'border-purple-400 ring-4 ring-purple-500/25 shadow-purple-900/30'
-          : isUser
-          ? 'border-zinc-800 hover:border-zinc-500'
-          : 'border-zinc-800 hover:border-zinc-400'
-      }`}
-    >
-      {/* Top Handle */}
-      <Handle
-        type="target"
-        position={Position.Top}
-        className="!w-3 !h-3 !bg-zinc-100 !border-2 !border-zinc-950 transition-transform group-hover:scale-125"
-      />
-      {/* Left Handle (for horizontal DAG) */}
-      <Handle
-        type="target"
-        id="left"
-        position={Position.Left}
-        className="!w-3 !h-3 !bg-zinc-100 !border-2 !border-zinc-950 opacity-0 group-hover:opacity-100 transition-opacity"
-      />
+    const handleCopy = async (e: React.MouseEvent) => {
+      e.stopPropagation();
+      const success = await copyToClipboard(nodeData.content);
+      if (success) {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      }
+    };
+
+    return (
+      <div
+        className={`group relative rounded-2xl w-[360px] sm:w-[380px] bg-zinc-950/95 border backdrop-blur-xl transition-all duration-200 shadow-2xl ${
+          selected
+            ? 'border-white ring-2 ring-white/30 shadow-white/10'
+            : isActiveForkParent
+            ? 'border-zinc-200 ring-4 ring-zinc-500/20 shadow-zinc-800/40'
+            : isSelectedForMerge
+            ? 'border-purple-400 ring-4 ring-purple-500/25 shadow-purple-900/30'
+            : isUser
+            ? 'border-zinc-800 hover:border-zinc-500'
+            : 'border-zinc-800 hover:border-zinc-400'
+        }`}
+      >
+        {/* Primary Target Handle (Adapts dynamically to layout: Left in LR, Top in TB) */}
+        <Handle
+          type="target"
+          position={isLR ? Position.Left : Position.Top}
+          className="!w-3.5 !h-3.5 !bg-zinc-200 hover:!bg-white !border-2 !border-zinc-950 transition-all group-hover:scale-125 shadow-md z-10"
+          title={t.canvas.dragToConnect || 'Target relationship handle'}
+        />
+
+        {/* Auxiliary Target Handle (allowing cross-axis connections) */}
+        <Handle
+          type="target"
+          id={isLR ? 'top' : 'left'}
+          position={isLR ? Position.Top : Position.Left}
+          className="!w-2.5 !h-2.5 !bg-zinc-400 hover:!bg-white !border-2 !border-zinc-950 opacity-40 hover:opacity-100 group-hover:opacity-80 transition-all hover:scale-125 z-10"
+          title={t.canvas.dragToConnect || 'Auxiliary target handle'}
+        />
 
       {/* Generating Progress Shimmer Bar */}
       {isGenerating && (
@@ -409,18 +416,21 @@ export const CustomThoughtNode: React.FC<NodeProps> = memo(({ id, data, selected
         </button>
       </div>
 
-      {/* Bottom Handle */}
+      {/* Primary Source Handle (Adapts dynamically to layout: Right in LR, Bottom in TB) */}
       <Handle
         type="source"
-        position={Position.Bottom}
-        className="!w-3 !h-3 !bg-zinc-100 !border-2 !border-zinc-950 transition-transform group-hover:scale-125"
+        position={isLR ? Position.Right : Position.Bottom}
+        className="!w-3.5 !h-3.5 !bg-zinc-200 hover:!bg-white !border-2 !border-zinc-950 transition-all group-hover:scale-125 shadow-md z-10"
+        title={t.canvas.dragToConnect || 'Source relationship handle'}
       />
-      {/* Right Handle (for horizontal DAG) */}
+
+      {/* Auxiliary Source Handle (allowing cross-axis connections) */}
       <Handle
         type="source"
-        id="right"
-        position={Position.Right}
-        className="!w-3 !h-3 !bg-zinc-100 !border-2 !border-zinc-950 opacity-0 group-hover:opacity-100 transition-opacity"
+        id={isLR ? 'bottom' : 'right'}
+        position={isLR ? Position.Bottom : Position.Right}
+        className="!w-2.5 !h-2.5 !bg-zinc-400 hover:!bg-white !border-2 !border-zinc-950 opacity-40 hover:opacity-100 group-hover:opacity-80 transition-all hover:scale-125 z-10"
+        title={t.canvas.dragToConnect || 'Auxiliary source handle'}
       />
     </div>
   );

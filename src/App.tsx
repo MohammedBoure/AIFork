@@ -70,6 +70,7 @@ export function ThoughtGraphApp() {
     handleToggleMergeSelect,
     handleClearMergeSelection,
     handleDeleteNode,
+    handleDeleteEdge,
     handleBatchDelete,
     handleRetryNode,
     handleUpdateNodeContent,
@@ -142,6 +143,7 @@ export function ThoughtGraphApp() {
           onOpenTemplates={() => setIsTemplatesOpen(true)}
           onOpenSessions={handleOpenSessions}
           onBatchDelete={handleBatchDelete}
+          onDeleteEdge={handleDeleteEdge}
         />
 
         {/* Floating Fork & Ideation Prompt Bar */}

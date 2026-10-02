@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useCallback } from 'react';
+import React, { useMemo, useState, useCallback, useEffect } from 'react';
 import {
   ReactFlow,
   Background,
@@ -45,6 +45,7 @@ interface ThoughtCanvasProps {
   onOpenTemplates: () => void;
   onOpenSessions?: () => void;
   onBatchDelete: (nodeIds: string[]) => void;
+  onDeleteEdge?: (edgeId: string) => void;
 }
 
 export const ThoughtCanvas: React.FC<ThoughtCanvasProps> = ({
@@ -72,6 +73,7 @@ export const ThoughtCanvas: React.FC<ThoughtCanvasProps> = ({
   onOpenTemplates,
   onOpenSessions,
   onBatchDelete,
+  onDeleteEdge,
 }) => {
   // Context Menu State
   const [contextMenu, setContextMenu] = useState<ContextMenuState>({
@@ -80,12 +82,48 @@ export const ThoughtCanvas: React.FC<ThoughtCanvasProps> = ({
     y: 0,
   });
 
-  // Track multi-selected nodes from React Flow
+  // Track multi-selected nodes from React Flow and merge selection
   const multiSelectedNodeIds = useMemo(() => {
     const selected = nodes.filter((n) => n.selected).map((n) => n.id);
-    // Combine with selectedForMergeIds if any
     return Array.from(new Set([...selected, ...selectedForMergeIds]));
   }, [nodes, selectedForMergeIds]);
+
+  // Global Keyboard shortcuts for deleting selected nodes and edges
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const activeEl = document.activeElement as HTMLElement | null;
+      if (
+        activeEl &&
+        (activeEl.tagName === 'INPUT' ||
+          activeEl.tagName === 'TEXTAREA' ||
+          activeEl.isContentEditable ||
+          activeEl.closest('input, textarea, [contenteditable="true"]'))
+      ) {
+        return;
+      }
+
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        // 1. Delete selected nodes if any
+        if (multiSelectedNodeIds.length > 0) {
+          e.preventDefault();
+          onBatchDelete(multiSelectedNodeIds);
+          return;
+        }
+
+        // 2. Delete selected edges if any
+        if (onDeleteEdge) {
+          const selectedEdges = edges.filter((edge) => edge.selected);
+          if (selectedEdges.length > 0) {
+            e.preventDefault();
+            selectedEdges.forEach((edge) => onDeleteEdge(edge.id));
+          }
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [multiSelectedNodeIds, edges, onBatchDelete, onDeleteEdge]);
 
   // Static node types object
   const nodeTypes = useMemo(
@@ -123,6 +161,7 @@ export const ThoughtCanvas: React.FC<ThoughtCanvasProps> = ({
       onOpenFocusFlow,
       onToggleMergeSelect,
       onDeleteNode,
+      onDeleteEdge,
       onInspectNode,
       onRetryNode,
       onUpdateNodeContent,
@@ -134,6 +173,7 @@ export const ThoughtCanvas: React.FC<ThoughtCanvasProps> = ({
       onOpenFocusFlow,
       onToggleMergeSelect,
       onDeleteNode,
+      onDeleteEdge,
       onInspectNode,
       onRetryNode,
       onUpdateNodeContent,
@@ -196,6 +236,15 @@ export const ThoughtCanvas: React.FC<ThoughtCanvasProps> = ({
           onPaneContextMenu={handlePaneContextMenu}
           selectionOnDrag={true}
           panOnDrag={[1, 2]} // Pan with middle button or right drag, box select with left drag or shift+left
+          deleteKeyCode={['Backspace', 'Delete']}
+          onDelete={({ nodes: delNodes, edges: delEdges }) => {
+            if (delNodes && delNodes.length > 0) {
+              onBatchDelete(delNodes.map((n) => n.id));
+            }
+            if (delEdges && delEdges.length > 0 && onDeleteEdge) {
+              delEdges.forEach((e) => onDeleteEdge(e.id));
+            }
+          }}
         >
           <Background
             variant={BackgroundVariant.Dots}
@@ -234,8 +283,8 @@ export const ThoughtCanvas: React.FC<ThoughtCanvasProps> = ({
           onToggleMinimap={onToggleMinimap}
         />
 
-        {/* Batch Action Dock for Multi-Selection */}
-        {multiSelectedNodeIds.length >= 2 && (
+        {/* Batch Action Dock for Multi-Selection & Quick Deletion */}
+        {multiSelectedNodeIds.length >= 1 && (
           <BatchActionBar
             selectedNodeIds={multiSelectedNodeIds}
             nodes={nodes}
@@ -263,6 +312,8 @@ export const ThoughtCanvas: React.FC<ThoughtCanvasProps> = ({
           isSelectedForMerge={
             Boolean(contextMenu.nodeId && selectedForMergeIds.includes(contextMenu.nodeId))
           }
+          multiSelectedCount={multiSelectedNodeIds.length}
+          onBatchDeleteSelected={() => onBatchDelete(multiSelectedNodeIds)}
         />
       </div>
     </NodeActionsProvider>

@@ -36,7 +36,7 @@ import {
   extractPreviewText,
 } from '../services/storage';
 import { STARTER_TEMPLATES } from '../services/mockData';
-import { getLayoutedElements, calculateChildPosition } from '../utils/dagLayout';
+import { getLayoutedElements, calculateChildPosition, wouldCreateCycle } from '../utils/dagLayout';
 import {
   executeAIBranchCompletion,
   executeAIMergeSynthesis,
@@ -134,29 +134,147 @@ export function useGraphState() {
     saveSession(sessionToSave);
   }, [currentSessionId, currentSessionTitle, nodes, edges, activeParentId, activeSessionData.createdAt]);
 
-  // Node changes
-  const onNodesChange: OnNodesChange<ThoughtFlowNode> = useCallback((changes: NodeChange<ThoughtFlowNode>[]) => {
-    setNodes((nds) => applyNodeChanges(changes, nds) as ThoughtFlowNode[]);
-  }, []);
+  // Node changes with automated relationship & active state cleanup
+  const onNodesChange: OnNodesChange<ThoughtFlowNode> = useCallback(
+    (changes: NodeChange<ThoughtFlowNode>[]) => {
+      const removedChanges = changes.filter((c) => c.type === 'remove');
+      if (removedChanges.length > 0) {
+        const removedIds = new Set(removedChanges.map((c) => c.id));
+        setEdges((eds) => eds.filter((e) => !removedIds.has(e.source) && !removedIds.has(e.target)));
+        setActiveParentId((prev) => (prev && removedIds.has(prev) ? null : prev));
+        setFocusNodeId((prev) => (prev && removedIds.has(prev) ? null : prev));
+        setSelectedForMergeIds((prev) => prev.filter((id) => !removedIds.has(id)));
+      }
+      setNodes((nds) => applyNodeChanges(changes, nds) as ThoughtFlowNode[]);
+    },
+    []
+  );
 
-  // Edge changes
-  const onEdgesChange: OnEdgesChange<ThoughtFlowEdge> = useCallback((changes: EdgeChange<ThoughtFlowEdge>[]) => {
-    setEdges((eds) => applyEdgeChanges(changes, eds) as ThoughtFlowEdge[]);
-  }, []);
+  // Edge changes with parentIds synchronization
+  const onEdgesChange: OnEdgesChange<ThoughtFlowEdge> = useCallback(
+    (changes: EdgeChange<ThoughtFlowEdge>[]) => {
+      const removedChanges = changes.filter((c) => c.type === 'remove');
+      if (removedChanges.length > 0) {
+        const removedIds = new Set(removedChanges.map((c) => c.id));
+        setEdges((currentEdges) => {
+          const removedEdgesList = currentEdges.filter((e) => removedIds.has(e.id));
+          if (removedEdgesList.length > 0) {
+            setNodes((currentNodes) =>
+              currentNodes.map((node) => {
+                const incomingRemoved = removedEdgesList.filter((e) => e.target === node.id);
+                if (incomingRemoved.length > 0 && node.data.parentIds) {
+                  const sourcesToRemove = new Set(incomingRemoved.map((e) => e.source));
+                  return {
+                    ...node,
+                    data: {
+                      ...node.data,
+                      parentIds: node.data.parentIds.filter((pId) => !sourcesToRemove.has(pId)),
+                    },
+                  };
+                }
+                return node;
+              })
+            );
+          }
+          return applyEdgeChanges(changes, currentEdges) as ThoughtFlowEdge[];
+        });
+        return;
+      }
+      setEdges((eds) => applyEdgeChanges(changes, eds) as ThoughtFlowEdge[]);
+    },
+    []
+  );
 
-  // Connection handler
-  const onConnect: OnConnect = useCallback((params: Connection) => {
-    setEdges((eds) =>
-      addEdge(
-        {
-          ...params,
-          type: settings.edgeType || 'smoothstep',
-          animated: true,
-        },
-        eds
-      ) as ThoughtFlowEdge[]
-    );
-  }, [settings.edgeType]);
+  // Delete single edge explicitly and update target node's parentIds
+  const handleDeleteEdge = useCallback(
+    (edgeId: string) => {
+      setEdges((currentEdges) => {
+        const edgeToDelete = currentEdges.find((e) => e.id === edgeId);
+        if (!edgeToDelete) return currentEdges;
+
+        const { source, target } = edgeToDelete;
+        setNodes((currentNodes) =>
+          currentNodes.map((node) => {
+            if (node.id === target && node.data.parentIds) {
+              return {
+                ...node,
+                data: {
+                  ...node.data,
+                  parentIds: node.data.parentIds.filter((pId) => pId !== source),
+                },
+              };
+            }
+            return node;
+          })
+        );
+
+        return currentEdges.filter((e) => e.id !== edgeId);
+      });
+      addToast('info', 'Relationship removed.');
+    },
+    [addToast]
+  );
+
+  // Connection handler creating new relationships and synchronizing parentIds
+  const onConnect: OnConnect = useCallback(
+    (params: Connection) => {
+      if (!params.source || !params.target) return;
+
+      if (params.source === params.target) {
+        addToast('error', 'Cannot connect a node to itself.');
+        return;
+      }
+
+      // Check if relationship already exists
+      const exists = edges.some(
+        (e) => e.source === params.source && e.target === params.target
+      );
+      if (exists) {
+        addToast('info', 'Relationship already exists between these nodes.');
+        return;
+      }
+
+      // Check DAG cycle
+      if (wouldCreateCycle(params.source, params.target, edges)) {
+        addToast('error', 'Cannot create relationship: This would form a circular loop (DAG requirement).');
+        return;
+      }
+
+      const newEdge: ThoughtFlowEdge = {
+        id: `edge-${params.source}-${params.target}-${Date.now()}`,
+        source: params.source,
+        target: params.target,
+        sourceHandle: params.sourceHandle || undefined,
+        targetHandle: params.targetHandle || undefined,
+        type: settings.edgeType || 'smoothstep',
+        animated: true,
+      };
+
+      setEdges((eds) => addEdge(newEdge, eds) as ThoughtFlowEdge[]);
+
+      // Append source to target node's parentIds
+      setNodes((currentNodes) =>
+        currentNodes.map((node) => {
+          if (node.id === params.target) {
+            const currentParents = node.data.parentIds || [];
+            if (!currentParents.includes(params.source!)) {
+              return {
+                ...node,
+                data: {
+                  ...node.data,
+                  parentIds: [...currentParents, params.source!],
+                },
+              };
+            }
+          }
+          return node;
+        })
+      );
+
+      addToast('success', 'New relationship connected.');
+    },
+    [edges, settings.edgeType, addToast]
+  );
 
   // Fork a node (sets active parent)
   const handleForkNode = useCallback((nodeId: string) => {
@@ -209,12 +327,13 @@ export function useGraphState() {
 
   // Batch delete selected nodes
   const handleBatchDelete = useCallback((nodeIds: string[]) => {
+    if (nodeIds.length === 0) return;
     const idSet = new Set(nodeIds);
     setNodes((nds) => nds.filter((n) => !idSet.has(n.id)));
     setEdges((eds) => eds.filter((e) => !idSet.has(e.source) && !idSet.has(e.target)));
     if (activeParentId && idSet.has(activeParentId)) setActiveParentId(null);
     if (focusNodeId && idSet.has(focusNodeId)) setFocusNodeId(null);
-    setSelectedForMergeIds([]);
+    setSelectedForMergeIds((prev) => prev.filter((id) => !idSet.has(id)));
     addToast('info', `Deleted ${nodeIds.length} nodes from canvas.`);
   }, [activeParentId, focusNodeId, addToast]);
 
@@ -364,12 +483,12 @@ export function useGraphState() {
       const targetParent = parentOverride !== undefined ? parentOverride : activeParentId;
       const parentIds = targetParent ? [targetParent] : [];
 
-      // Calculate placement position
-      const userPos = calculateChildPosition(parentIds, nodes, edges);
-      const aiPos = {
-        x: userPos.x,
-        y: userPos.y + 240,
-      };
+      // Calculate placement position respecting current layout direction
+      const userPos = calculateChildPosition(parentIds, nodes, edges, layoutDirection);
+      const isLR = layoutDirection === 'LR';
+      const aiPos = isLR
+        ? { x: userPos.x + 420, y: userPos.y }
+        : { x: userPos.x, y: userPos.y + 240 };
 
       // 1. Create User Node
       const userNode: ThoughtFlowNode = {
@@ -425,11 +544,20 @@ export function useGraphState() {
         animated: true,
       };
 
-      const updatedNodes = [...nodes, userNode, assistantNode];
+      const rawNodes = [...nodes, userNode, assistantNode];
       const allEdges = [...edges, ...newEdges, aiEdge];
 
+      // Automatically layout immediately so newly added nodes appear in exact hierarchical order
+      let updatedNodes = rawNodes;
+      let updatedEdges = allEdges;
+      if (settings.autoLayoutOnAdd) {
+        const layouted = getLayoutedElements(rawNodes, allEdges, layoutDirection);
+        updatedNodes = layouted.nodes;
+        updatedEdges = layouted.edges;
+      }
+
       setNodes(updatedNodes);
-      setEdges(allEdges);
+      setEdges(updatedEdges);
       setActiveParentId(assistantNodeId);
       setFocusNodeId(assistantNodeId);
 
@@ -511,6 +639,7 @@ export function useGraphState() {
       edges,
       isGenerating,
       settings,
+      layoutDirection,
       handleAutoLayout,
       addToast,
     ]
@@ -678,7 +807,7 @@ export function useGraphState() {
       const mergeNodeId = `node-merge-${timestamp}`;
 
       const selectedNodes = nodes.filter((n) => selectedForMergeIds.includes(n.id));
-      const mergePos = calculateChildPosition(selectedForMergeIds, nodes, edges);
+      const mergePos = calculateChildPosition(selectedForMergeIds, nodes, edges, layoutDirection);
 
       const mergeNode: ThoughtFlowNode = {
         id: mergeNodeId,
@@ -707,8 +836,19 @@ export function useGraphState() {
         data: { isMergeEdge: true },
       }));
 
-      setNodes((nds) => [...nds, mergeNode]);
-      setEdges((eds) => [...eds, ...mergeEdges]);
+      const rawNodes = [...nodes, mergeNode];
+      const allEdges = [...edges, ...mergeEdges];
+
+      let finalNodes = rawNodes;
+      let finalEdges = allEdges;
+      if (settings.autoLayoutOnAdd) {
+        const layouted = getLayoutedElements(rawNodes, allEdges, layoutDirection);
+        finalNodes = layouted.nodes;
+        finalEdges = layouted.edges;
+      }
+
+      setNodes(finalNodes);
+      setEdges(finalEdges);
       setActiveParentId(mergeNodeId);
       setFocusNodeId(mergeNodeId);
       setSelectedForMergeIds([]);
@@ -794,6 +934,7 @@ export function useGraphState() {
       nodes,
       edges,
       settings,
+      layoutDirection,
       handleAutoLayout,
       addToast,
     ]
@@ -861,6 +1002,7 @@ export function useGraphState() {
     handleToggleMergeSelect,
     handleClearMergeSelection,
     handleDeleteNode,
+    handleDeleteEdge,
     handleBatchDelete,
     handleRetryNode,
     handleUpdateNodeContent,
