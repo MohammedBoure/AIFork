@@ -83,7 +83,8 @@ export function isQuotaExhaustedError(err: unknown): boolean {
 async function runWithQuotaFailover(
   settings: AppSettings,
   provider: AIProvider,
-  executeCall: (apiKey: string) => Promise<GenerateAIResult>
+  executeCall: (apiKey: string) => Promise<GenerateAIResult>,
+  onStatusUpdate?: (statusMessage: string) => void
 ): Promise<GenerateAIResult> {
   const currentKey = provider === 'openrouter' ? settings.openRouterApiKey : settings.apiKey;
   try {
@@ -101,11 +102,18 @@ async function runWithQuotaFailover(
       throw err;
     }
 
-    console.warn(`[ThoughtGraph AI] Key quota limit reached. Auto-switching across ${candidateKeys.length} alternate key(s)...`);
+    console.warn(`[ThoughtGraph AI] Key quota limit reached. Auto-switching across ${candidateKeys.length} alternate key(s) with 3s delay...`);
 
     let lastErr = err;
     for (const altKey of candidateKeys) {
       try {
+        console.info(`[ThoughtGraph AI] Waiting 3 seconds before switching to key "${altKey.name}"...`);
+        if (onStatusUpdate) {
+          onStatusUpdate(`⏳ تجاوز حد الاستهلاك (HTTP 429). جاري الانتقال إلى المفتاح "${altKey.name}" خلال 3 ثوانٍ...`);
+        }
+        // 3-second grace period / cooldown before trying next API key
+        await new Promise((resolve) => setTimeout(resolve, 3000));
+
         console.info(`[ThoughtGraph AI] Attempting fallback with key "${altKey.name}"...`);
         const result = await executeCall(altKey.key);
 
@@ -118,7 +126,7 @@ async function runWithQuotaFailover(
         };
         saveSettings(updatedSettings);
 
-        const switchNotice = `Notice: Primary key reached quota limits (HTTP 429). Automatically switched to key "${altKey.name}".`;
+        const switchNotice = `Notice: Primary key reached quota limits (HTTP 429). Automatically switched to key "${altKey.name}" after 3s delay.`;
         return {
           ...result,
           fallbackNotice: result.fallbackNotice ? `${result.fallbackNotice} • ${switchNotice}` : switchNotice,
@@ -147,10 +155,26 @@ export async function executeAIBranchCompletion(
   const useOpenRouter = isModelOpenRouter(modelId, settings.provider);
   const provider: AIProvider = useOpenRouter ? 'openrouter' : 'gemini';
 
-  return runWithQuotaFailover(settings, provider, async (activeKey) => {
-    if (useOpenRouter) {
-      const contextMessages = resolveOpenRouterContext(userNodeId, nodes);
-      return generateOpenRouterResponse({
+  return runWithQuotaFailover(
+    settings,
+    provider,
+    async (activeKey) => {
+      if (useOpenRouter) {
+        const contextMessages = resolveOpenRouterContext(userNodeId, nodes);
+        return generateOpenRouterResponse({
+          apiKey: activeKey,
+          model: modelId,
+          messages: contextMessages,
+          systemInstruction: settings.systemInstruction,
+          temperature: settings.temperature,
+          maxOutputTokens: settings.maxOutputTokens,
+          onStreamChunk,
+        });
+      }
+
+      // Google Gemini API
+      const contextMessages = resolveGeminiContext(userNodeId, nodes);
+      return generateGeminiResponse({
         apiKey: activeKey,
         model: modelId,
         messages: contextMessages,
@@ -159,20 +183,9 @@ export async function executeAIBranchCompletion(
         maxOutputTokens: settings.maxOutputTokens,
         onStreamChunk,
       });
-    }
-
-    // Google Gemini API
-    const contextMessages = resolveGeminiContext(userNodeId, nodes);
-    return generateGeminiResponse({
-      apiKey: activeKey,
-      model: modelId,
-      messages: contextMessages,
-      systemInstruction: settings.systemInstruction,
-      temperature: settings.temperature,
-      maxOutputTokens: settings.maxOutputTokens,
-      onStreamChunk,
-    });
-  });
+    },
+    (statusMsg) => onStreamChunk?.('', statusMsg)
+  );
 }
 
 /**
@@ -190,14 +203,34 @@ export async function executeAIMergeSynthesis(
   const provider: AIProvider = useOpenRouter ? 'openrouter' : 'gemini';
   const nodesMap = new Map(allNodes.map((n) => [n.id, n]));
 
-  return runWithQuotaFailover(settings, provider, async (activeKey) => {
-    if (useOpenRouter) {
-      const { messages } = buildOpenRouterMergePrompt(
+  return runWithQuotaFailover(
+    settings,
+    provider,
+    async (activeKey) => {
+      if (useOpenRouter) {
+        const { messages } = buildOpenRouterMergePrompt(
+          selectedNodes,
+          nodesMap,
+          synthesisPrompt
+        );
+        return generateOpenRouterResponse({
+          apiKey: activeKey,
+          model: modelId,
+          messages,
+          systemInstruction: settings.systemInstruction,
+          temperature: settings.temperature,
+          maxOutputTokens: settings.maxOutputTokens,
+          onStreamChunk,
+        });
+      }
+
+      // Google Gemini API
+      const { messages } = buildMergeSynthesisPrompt(
         selectedNodes,
         nodesMap,
         synthesisPrompt
       );
-      return generateOpenRouterResponse({
+      return generateGeminiResponse({
         apiKey: activeKey,
         model: modelId,
         messages,
@@ -206,24 +239,9 @@ export async function executeAIMergeSynthesis(
         maxOutputTokens: settings.maxOutputTokens,
         onStreamChunk,
       });
-    }
-
-    // Google Gemini API
-    const { messages } = buildMergeSynthesisPrompt(
-      selectedNodes,
-      nodesMap,
-      synthesisPrompt
-    );
-    return generateGeminiResponse({
-      apiKey: activeKey,
-      model: modelId,
-      messages,
-      systemInstruction: settings.systemInstruction,
-      temperature: settings.temperature,
-      maxOutputTokens: settings.maxOutputTokens,
-      onStreamChunk,
-    });
-  });
+    },
+    (statusMsg) => onStreamChunk?.('', statusMsg)
+  );
 }
 
 /**
@@ -240,13 +258,32 @@ export async function executeAIRetry(
   const useOpenRouter = isModelOpenRouter(modelId, settings.provider);
   const provider: AIProvider = useOpenRouter ? 'openrouter' : 'gemini';
 
-  return runWithQuotaFailover(settings, provider, async (activeKey) => {
-    if (useOpenRouter) {
-      const contextMessages = parentId
-        ? resolveOpenRouterContext(parentId, allNodes)
-        : [{ role: 'user' as const, content: node.data.content || 'Continue exploration' }];
+  return runWithQuotaFailover(
+    settings,
+    provider,
+    async (activeKey) => {
+      if (useOpenRouter) {
+        const contextMessages = parentId
+          ? resolveOpenRouterContext(parentId, allNodes)
+          : [{ role: 'user' as const, content: node.data.content || 'Continue exploration' }];
 
-      return generateOpenRouterResponse({
+        return generateOpenRouterResponse({
+          apiKey: activeKey,
+          model: modelId,
+          messages: contextMessages,
+          systemInstruction: settings.systemInstruction,
+          temperature: settings.temperature,
+          maxOutputTokens: settings.maxOutputTokens,
+          onStreamChunk,
+        });
+      }
+
+      // Google Gemini
+      const contextMessages = parentId
+        ? resolveGeminiContext(parentId, allNodes)
+        : [{ role: 'user' as const, parts: [{ text: node.data.content || 'Continue exploration' }] }];
+
+      return generateGeminiResponse({
         apiKey: activeKey,
         model: modelId,
         messages: contextMessages,
@@ -255,21 +292,7 @@ export async function executeAIRetry(
         maxOutputTokens: settings.maxOutputTokens,
         onStreamChunk,
       });
-    }
-
-    // Google Gemini
-    const contextMessages = parentId
-      ? resolveGeminiContext(parentId, allNodes)
-      : [{ role: 'user' as const, parts: [{ text: node.data.content || 'Continue exploration' }] }];
-
-    return generateGeminiResponse({
-      apiKey: activeKey,
-      model: modelId,
-      messages: contextMessages,
-      systemInstruction: settings.systemInstruction,
-      temperature: settings.temperature,
-      maxOutputTokens: settings.maxOutputTokens,
-      onStreamChunk,
-    });
-  });
+    },
+    (statusMsg) => onStreamChunk?.('', statusMsg)
+  );
 }
