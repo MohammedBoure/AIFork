@@ -12,6 +12,7 @@ import {
   Coins,
   GitFork,
   Pencil,
+  Eye,
 } from 'lucide-react';
 import type { ThoughtFlowNode, ModelOption } from '../../types/graph';
 import { getBranchAncestors } from '../../utils/contextResolver';
@@ -50,6 +51,8 @@ export const FocusFlowModal: React.FC<FocusFlowModalProps> = ({
   const [copiedNodeId, setCopiedNodeId] = useState<string | null>(null);
   const [editingNodeId, setEditingNodeId] = useState<string | null>(null);
   const [editingContent, setEditingContent] = useState('');
+  const [isReplyPreview, setIsReplyPreview] = useState(false);
+  const [isEditPreview, setIsEditPreview] = useState(false);
   const chatBottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -83,6 +86,7 @@ export const FocusFlowModal: React.FC<FocusFlowModalProps> = ({
 
     onReplyInFlow(replyText.trim(), selectedModel || leafNode.data.modelUsed || defaultModel, leafNode.id);
     setReplyText('');
+    setIsReplyPreview(false);
   };
 
   const handleCopyFullFlow = async () => {
@@ -111,6 +115,7 @@ export const FocusFlowModal: React.FC<FocusFlowModalProps> = ({
   const handleStartEdit = (nodeId: string, currentContent: string) => {
     setEditingNodeId(nodeId);
     setEditingContent(currentContent);
+    setIsEditPreview(false);
   };
 
   const handleSaveEdit = (nodeId: string, regenerate: boolean) => {
@@ -118,6 +123,7 @@ export const FocusFlowModal: React.FC<FocusFlowModalProps> = ({
       onUpdateNodeContent(nodeId, editingContent, regenerate);
     }
     setEditingNodeId(null);
+    setIsEditPreview(false);
   };
 
   return (
@@ -274,17 +280,73 @@ export const FocusFlowModal: React.FC<FocusFlowModalProps> = ({
                         <Pencil className="w-3.5 h-3.5 text-zinc-300" />
                         <span>{t.focusFlow.editingInFlow}</span>
                       </span>
-                      <span className="text-[11px] text-zinc-500 font-mono">{t.focusFlow.editingHint}</span>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setIsEditPreview(!isEditPreview)}
+                          className={`flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium transition-colors ${
+                            isEditPreview
+                              ? 'bg-white text-zinc-950'
+                              : 'bg-zinc-800 text-zinc-300 hover:text-white border border-zinc-700'
+                          }`}
+                          title={isEditPreview ? t.markdown.editMode : t.markdown.livePreview}
+                        >
+                          {isEditPreview ? (
+                            <>
+                              <Pencil className="w-3 h-3" />
+                              <span>{t.markdown.editMode}</span>
+                            </>
+                          ) : (
+                            <>
+                              <Eye className="w-3 h-3" />
+                              <span>{t.markdown.livePreview}</span>
+                            </>
+                          )}
+                        </button>
+                        <span className="text-[11px] text-zinc-500 font-mono hidden sm:inline">{t.focusFlow.editingHint}</span>
+                      </div>
                     </div>
 
-                    <textarea
-                      value={editingContent}
-                      onChange={(e) => setEditingContent(e.target.value)}
-                      rows={4}
-                      dir="auto"
-                      className="w-full bg-zinc-950 border border-zinc-700 focus:border-zinc-300 rounded-xl p-3 text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none leading-relaxed resize-y font-sans transition-colors bidi-auto"
-                      placeholder={t.canvas.editPromptPlaceholder}
-                    />
+                    {isEditPreview ? (
+                      <div
+                        className="p-3 rounded-xl bg-zinc-950 border border-zinc-700/80 min-h-[100px] max-h-60 overflow-y-auto prose-custom select-text selectable-text text-zinc-100"
+                        dir="auto"
+                      >
+                        {editingContent.trim() ? (
+                          <ReactMarkdown
+                            remarkPlugins={[remarkGfm]}
+                            components={{
+                              code({ inline, className, children, ...props }: { inline?: boolean; className?: string; children?: React.ReactNode }) {
+                                const match = /language-(\w+)/.exec(className || '');
+                                return !inline && match ? (
+                                  <CodeBlock
+                                    language={match[1]}
+                                    value={String(children).replace(/\n$/, '')}
+                                  />
+                                ) : (
+                                  <code className={className} {...props}>
+                                    {children}
+                                  </code>
+                                );
+                              },
+                            }}
+                          >
+                            {editingContent}
+                          </ReactMarkdown>
+                        ) : (
+                          <p className="text-zinc-500 italic text-xs">{t.markdown.emptyPreview}</p>
+                        )}
+                      </div>
+                    ) : (
+                      <textarea
+                        value={editingContent}
+                        onChange={(e) => setEditingContent(e.target.value)}
+                        rows={4}
+                        dir="auto"
+                        className="w-full bg-zinc-950 border border-zinc-700 focus:border-zinc-300 rounded-xl p-3 text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none leading-relaxed resize-y font-sans transition-colors bidi-auto"
+                        placeholder={t.canvas.editPromptPlaceholder}
+                      />
+                    )}
 
                     <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
                       <div className="flex items-center gap-2">
@@ -375,40 +437,99 @@ export const FocusFlowModal: React.FC<FocusFlowModalProps> = ({
               <span>{t.focusFlow.continueFlow} {branchNodes.length}</span>
             </span>
 
-            <div className="flex items-center gap-1.5">
-              <span className="text-zinc-400 text-[11px] hidden sm:inline">{t.settings.defaultModel}:</span>
-              <ModelSelector
-                selectedModel={selectedModel}
-                onChange={setSelectedModel}
-                availableModels={availableModels}
-                variant="compact"
-              />
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setIsReplyPreview(!isReplyPreview)}
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all ${
+                  isReplyPreview
+                    ? 'bg-white text-zinc-950 shadow-xs'
+                    : 'bg-zinc-800 text-zinc-300 hover:text-white border border-zinc-700'
+                }`}
+                title={isReplyPreview ? t.markdown.editMode : t.markdown.livePreview}
+              >
+                {isReplyPreview ? (
+                  <>
+                    <Pencil className="w-3 h-3" />
+                    <span>{t.markdown.editMode}</span>
+                  </>
+                ) : (
+                  <>
+                    <Eye className="w-3 h-3" />
+                    <span>{t.markdown.livePreview}</span>
+                  </>
+                )}
+              </button>
+
+              <div className="flex items-center gap-1.5">
+                <span className="text-zinc-400 text-[11px] hidden sm:inline">{t.settings.defaultModel}:</span>
+                <ModelSelector
+                  selectedModel={selectedModel}
+                  onChange={setSelectedModel}
+                  availableModels={availableModels}
+                  variant="compact"
+                />
+              </div>
             </div>
           </div>
 
-          {/* Text Input */}
+          {/* Text Input or Live Preview */}
           <div className="flex items-end gap-2 bg-zinc-900 border border-zinc-800 rounded-xl p-2.5 focus-within:border-zinc-500 transition-colors">
-            <textarea
-              ref={textareaRef}
-              rows={2}
-              dir="auto"
-              value={replyText}
-              onChange={(e) => setReplyText(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault();
-                  handleSendReply();
-                }
-              }}
-              placeholder={t.focusFlow.replyPlaceholder}
-              disabled={isGenerating}
-              className="flex-1 bg-transparent resize-none text-xs sm:text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none leading-relaxed max-h-32 font-sans bidi-auto"
-            />
+            {isReplyPreview ? (
+              <div
+                className="flex-1 min-h-[56px] max-h-36 overflow-y-auto p-2.5 bg-zinc-950/80 rounded-lg border border-zinc-700/60 prose-custom text-zinc-100 text-xs sm:text-sm select-text selectable-text"
+                dir="auto"
+              >
+                {replyText.trim() ? (
+                  <ReactMarkdown
+                    remarkPlugins={[remarkGfm]}
+                    components={{
+                      code({ inline, className, children, ...props }: { inline?: boolean; className?: string; children?: React.ReactNode }) {
+                        const match = /language-(\w+)/.exec(className || '');
+                        return !inline && match ? (
+                          <CodeBlock
+                            language={match[1]}
+                            value={String(children).replace(/\n$/, '')}
+                          />
+                        ) : (
+                          <code className={className} {...props}>
+                            {children}
+                          </code>
+                        );
+                      },
+                    }}
+                  >
+                    {replyText}
+                  </ReactMarkdown>
+                ) : (
+                  <p className="text-zinc-500 italic text-xs py-1">
+                    {t.markdown.emptyPreview}
+                  </p>
+                )}
+              </div>
+            ) : (
+              <textarea
+                ref={textareaRef}
+                rows={2}
+                dir="auto"
+                value={replyText}
+                onChange={(e) => setReplyText(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSendReply();
+                  }
+                }}
+                placeholder={t.focusFlow.replyPlaceholder}
+                disabled={isGenerating}
+                className="flex-1 bg-transparent resize-none text-xs sm:text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none leading-relaxed max-h-32 font-sans bidi-auto"
+              />
+            )}
 
             <button
               onClick={() => handleSendReply()}
               disabled={!replyText.trim() || isGenerating}
-              className="px-4 py-2 rounded-lg bg-zinc-100 hover:bg-white text-zinc-950 font-semibold text-xs flex items-center gap-1.5 transition-colors disabled:opacity-40 disabled:cursor-not-allowed shadow-md"
+              className="px-4 py-2 rounded-lg bg-zinc-100 hover:bg-white text-zinc-950 font-semibold text-xs flex items-center gap-1.5 transition-colors disabled:opacity-40 disabled:cursor-not-allowed shadow-md flex-shrink-0"
             >
               {isGenerating ? (
                 <>

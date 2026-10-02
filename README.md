@@ -74,6 +74,20 @@ Instead of traditional linear chat interfaces, **ThoughtGraph AI** treats conver
 - **Complete Canvas Adaptation:** Nodes, background grid dots, minimap, controls, modals, and prompt bars automatically re-theme.
 - **Clean Direct-Work Workspace:** Removed brand names, logos, starter suggestions, and templates in favor of a minimalist, focused thinking canvas.
 
+### 11. Interactive Mermaid Diagrams Support 📊
+- **Visual Diagram Rendering:** Code blocks with `mermaid` syntax automatically render as SVG diagrams (flowcharts, sequence diagrams, class diagrams, state diagrams, ERDs, and mindmaps).
+- **Interactive Controls:** Zoom In, Zoom Out, and Reset Zoom to inspect detailed architectures and mindmaps.
+- **Diagram & Code Toggle:** Seamlessly switch between the rendered SVG visualization and raw Mermaid syntax.
+- **Export & Clipboard:** 1-click Copy SVG to clipboard, 1-click Download SVG file, and 1-click Copy Mermaid code.
+- **Light & Dark Adaptation:** Automatic real-time re-rendering matching active theme with Cairo font for Arabic labels.
+- **Syntax Error Protection:** Friendly error banner with raw code fallback prevents UI crashes on syntax typos.
+
+### 12. Instant Markdown Live Preview ("العرض المباشر") 👁️
+- **Prompt Bar Live Preview:** Preview Markdown formatting, lists, tables, and Mermaid diagrams before forking a new branch.
+- **Focus Flow Live Preview:** Real-time preview available for both linear conversation replies and inline message edits.
+- **Node Inline Edit Preview:** Preview prompt edits right on the canvas node card before saving or re-running.
+- **Arabic & Code Isolation:** Native bidirectional support (`dir="auto"`, `unicode-bidi: plaintext`, Cairo font), full selectable text, and strict LTR isolation for PrismJS code blocks.
+
 ---
 
 ## 🏗️ Directory Architecture

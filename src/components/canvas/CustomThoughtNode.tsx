@@ -18,6 +18,7 @@ import {
   MessageSquare,
   RotateCw,
   Pencil,
+  Eye,
 } from 'lucide-react';
 import type { ThoughtNodeData } from '../../types/graph';
 import { CodeBlock } from '../ui/CodeBlock';
@@ -50,15 +51,18 @@ export const CustomThoughtNode: React.FC<NodeProps> = memo(
 
     const [copied, setCopied] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
+    const [isEditPreview, setIsEditPreview] = useState(false);
     const [editContent, setEditContent] = useState('');
 
     const handleToggleEdit = (e: React.MouseEvent) => {
       e.stopPropagation();
       if (!isEditing) {
         setEditContent(nodeData.content || '');
+        setIsEditPreview(false);
         setIsEditing(true);
       } else {
         setIsEditing(false);
+        setIsEditPreview(false);
       }
     };
 
@@ -173,17 +177,76 @@ export const CustomThoughtNode: React.FC<NodeProps> = memo(
                 <Pencil className="w-3 h-3 text-zinc-600 dark:text-zinc-300" />
                 <span>{t.canvas.editPromptTitle}</span>
               </span>
-              <span className="text-[10px] text-zinc-400 dark:text-zinc-500 font-mono">{t.canvas.editPromptHint}</span>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsEditPreview(!isEditPreview);
+                  }}
+                  className={`flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium transition-colors ${
+                    isEditPreview
+                      ? 'bg-zinc-900 text-white dark:bg-white dark:text-zinc-950'
+                      : 'bg-zinc-200/80 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 hover:text-black dark:hover:text-white'
+                  }`}
+                  title={isEditPreview ? t.markdown.editMode : t.markdown.livePreview}
+                >
+                  {isEditPreview ? (
+                    <>
+                      <Pencil className="w-2.5 h-2.5" />
+                      <span>{t.markdown.editMode}</span>
+                    </>
+                  ) : (
+                    <>
+                      <Eye className="w-2.5 h-2.5" />
+                      <span>{t.markdown.livePreview}</span>
+                    </>
+                  )}
+                </button>
+                <span className="text-[10px] text-zinc-400 dark:text-zinc-500 font-mono hidden sm:inline">{t.canvas.editPromptHint}</span>
+              </div>
             </div>
 
-            <textarea
-              value={editContent}
-              onChange={(e) => setEditContent(e.target.value)}
-              rows={4}
-              dir="auto"
-              className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 focus:border-zinc-500 dark:focus:border-zinc-300 rounded-xl p-2.5 text-xs text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 dark:placeholder-zinc-500 focus:outline-none leading-relaxed resize-y font-sans transition-colors bidi-auto"
-              placeholder={t.canvas.editPromptPlaceholder}
-            />
+            {isEditPreview ? (
+              <div
+                className="p-3 rounded-xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 min-h-[90px] max-h-56 overflow-y-auto prose-custom select-text selectable-text text-zinc-800 dark:text-zinc-200 text-xs"
+                dir="auto"
+              >
+                {editContent.trim() ? (
+                  <ReactMarkdown
+                    remarkPlugins={[remarkGfm]}
+                    components={{
+                      code({ inline, className, children, ...props }: { inline?: boolean; className?: string; children?: React.ReactNode }) {
+                        const match = /language-(\w+)/.exec(className || '');
+                        return !inline && match ? (
+                          <CodeBlock
+                            language={match[1]}
+                            value={String(children).replace(/\n$/, '')}
+                          />
+                        ) : (
+                          <code className={className} {...props}>
+                            {children}
+                          </code>
+                        );
+                      },
+                    }}
+                  >
+                    {editContent}
+                  </ReactMarkdown>
+                ) : (
+                  <p className="text-zinc-400 italic text-xs py-1">{t.markdown.emptyPreview}</p>
+                )}
+              </div>
+            ) : (
+              <textarea
+                value={editContent}
+                onChange={(e) => setEditContent(e.target.value)}
+                rows={4}
+                dir="auto"
+                className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 focus:border-zinc-500 dark:focus:border-zinc-300 rounded-xl p-2.5 text-xs text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 dark:placeholder-zinc-500 focus:outline-none leading-relaxed resize-y font-sans transition-colors bidi-auto"
+                placeholder={t.canvas.editPromptPlaceholder}
+              />
+            )}
 
             <div className="flex flex-wrap items-center justify-between gap-1.5 pt-1">
               <div className="flex items-center gap-1.5">
@@ -192,6 +255,7 @@ export const CustomThoughtNode: React.FC<NodeProps> = memo(
                     e.stopPropagation();
                     onUpdateNodeContent(id, editContent, true);
                     setIsEditing(false);
+                    setIsEditPreview(false);
                   }}
                   type="button"
                   className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-zinc-900 dark:bg-zinc-100 hover:bg-zinc-800 dark:hover:bg-white text-white dark:text-zinc-950 text-[11px] font-semibold transition-colors shadow-sm"
@@ -206,6 +270,7 @@ export const CustomThoughtNode: React.FC<NodeProps> = memo(
                     e.stopPropagation();
                     onUpdateNodeContent(id, editContent, false);
                     setIsEditing(false);
+                    setIsEditPreview(false);
                   }}
                   type="button"
                   className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-800 dark:text-zinc-200 border border-zinc-300 dark:border-zinc-700 text-[11px] font-medium transition-colors"
@@ -221,6 +286,7 @@ export const CustomThoughtNode: React.FC<NodeProps> = memo(
                   e.stopPropagation();
                   setEditContent(nodeData.content || '');
                   setIsEditing(false);
+                  setIsEditPreview(false);
                 }}
                 type="button"
                 className="px-2 py-1.5 rounded-lg text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800 text-[11px] transition-colors"

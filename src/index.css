@@ -2,6 +2,7 @@
 @import "tailwindcss";
 @custom-variant dark (&:where(.dark, .dark *));
 @import "@xyflow/react/dist/style.css";
+@import "prismjs/themes/prism-tomorrow.css";
 
 :root {
   --background: #000000;
@@ -174,6 +175,12 @@ code,
   direction: ltr !important;
   text-align: left !important;
   unicode-bidi: isolate !important;
+}
+
+pre[class*="language-"],
+code[class*="language-"] {
+  text-shadow: none !important;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace !important;
 }
 
 .prose-custom p {
