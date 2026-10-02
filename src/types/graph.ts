@@ -70,7 +70,7 @@ export interface AppSettings {
   customModels: string[];
   autoLayoutOnAdd: boolean;
   edgeType: 'smoothstep' | 'bezier' | 'straight';
-  theme: 'monochrome' | 'slate';
+  theme: 'dark' | 'light' | 'monochrome';
 }
 
 /**

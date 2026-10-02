@@ -6,7 +6,6 @@ import { ForkPromptBar } from './components/prompt/ForkPromptBar';
 import { MergeModal } from './components/prompt/MergeModal';
 import { SettingsDrawer } from './components/settings/SettingsDrawer';
 import { ExportImportModal } from './components/modals/ExportImportModal';
-import { TemplatesModal } from './components/modals/TemplatesModal';
 import { NodeDetailModal } from './components/modals/NodeDetailModal';
 import { SessionsModal } from './components/modals/SessionsModal';
 import { FocusFlowModal } from './components/focus/FocusFlowModal';
@@ -33,6 +32,14 @@ export function ThoughtGraphApp() {
     toasts,
     dismissToast,
 
+    // Undo / Redo & Theme
+    canUndo,
+    canRedo,
+    handleUndo,
+    handleRedo,
+    theme,
+    toggleTheme,
+
     // Focus Flow
     focusNodeId,
     isFocusFlowOpen,
@@ -45,8 +52,6 @@ export function ThoughtGraphApp() {
     setIsSettingsOpen,
     isExportOpen,
     setIsExportOpen,
-    isTemplatesOpen,
-    setIsTemplatesOpen,
     isMergeModalOpen,
     setIsMergeModalOpen,
     inspectedNodeId,
@@ -90,7 +95,7 @@ export function ThoughtGraphApp() {
   );
 
   return (
-    <div className="flex flex-col w-screen h-screen overflow-hidden bg-black text-zinc-100" dir={dir}>
+    <div className="flex flex-col w-screen h-screen overflow-hidden bg-zinc-50 dark:bg-black text-zinc-900 dark:text-zinc-100" dir={dir}>
       {/* Top Navigation */}
       <Navbar
         nodeCount={nodes.length}
@@ -109,15 +114,20 @@ export function ThoughtGraphApp() {
         onOpenSessions={handleOpenSessions}
         onOpenSettings={() => setIsSettingsOpen(true)}
         onOpenExport={() => setIsExportOpen(true)}
-        onOpenTemplates={() => setIsTemplatesOpen(true)}
         onAutoLayout={() => handleAutoLayout(layoutDirection)}
         onResetCanvas={handleResetCanvas}
         onOpenMergeModal={() => setIsMergeModalOpen(true)}
         onOpenFocusFlow={handleOpenFocusFlow}
+        canUndo={canUndo}
+        canRedo={canRedo}
+        onUndo={handleUndo}
+        onRedo={handleRedo}
+        theme={theme}
+        onToggleTheme={toggleTheme}
       />
 
       {/* Main Interactive DAG Canvas */}
-      <main className="flex-1 relative overflow-hidden bg-black">
+      <main className="flex-1 relative overflow-hidden bg-zinc-50 dark:bg-black">
         <ThoughtCanvas
           nodes={nodes}
           edges={edges}
@@ -140,10 +150,12 @@ export function ThoughtGraphApp() {
           onOpenMergeModal={() => setIsMergeModalOpen(true)}
           onClearMergeSelection={handleClearMergeSelection}
           onNewGenesisThought={handleClearParent}
-          onOpenTemplates={() => setIsTemplatesOpen(true)}
           onOpenSessions={handleOpenSessions}
           onBatchDelete={handleBatchDelete}
           onDeleteEdge={handleDeleteEdge}
+          theme={theme}
+          onUndo={handleUndo}
+          onRedo={handleRedo}
         />
 
         {/* Floating Fork & Ideation Prompt Bar */}
@@ -200,13 +212,6 @@ export function ThoughtGraphApp() {
         edges={edges}
         activeParentId={activeParentId}
         onImportGraph={handleLoadGraph}
-      />
-
-      {/* Starter Templates Modal */}
-      <TemplatesModal
-        isOpen={isTemplatesOpen}
-        onClose={() => setIsTemplatesOpen(false)}
-        onSelectTemplate={handleLoadGraph}
       />
 
       {/* Node Detail Inspector Modal */}

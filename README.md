@@ -64,6 +64,16 @@ Instead of traditional linear chat interfaces, **ThoughtGraph AI** treats conver
 - Re-run AI generation automatically on edit or save text only.
 - Strict isolation prevents prompt changes on one branch from altering sibling branches.
 
+### 9. Undo & Redo History System ↩️↪️
+- Full historical snapshots tracking graph transformations, node creations, updates, deletions, and connections.
+- **Keyboard Shortcuts:** Fast undo with <kbd>Ctrl+Z</kbd> (<kbd>Cmd+Z</kbd>) and redo with <kbd>Ctrl+Y</kbd> or <kbd>Ctrl+Shift+Z</kbd>.
+- **Visual Toolbar:** Dedicated Undo and Redo buttons in the Navbar with real-time disabled state detection.
+
+### 10. Light & Dark Themes (Monochrome Design) ☀️🌙
+- **Seamless 1-Click Toggle:** Switch between Dark and crisp Light mode via the Navbar toggle button.
+- **Complete Canvas Adaptation:** Nodes, background grid dots, minimap, controls, modals, and prompt bars automatically re-theme.
+- **Clean Direct-Work Workspace:** Removed brand names, logos, starter suggestions, and templates in favor of a minimalist, focused thinking canvas.
+
 ---
 
 ## 🏗️ Directory Architecture

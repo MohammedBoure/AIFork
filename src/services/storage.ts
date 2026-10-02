@@ -7,7 +7,6 @@ import type {
   GraphSession,
 } from '../types/graph';
 import { getBranchAncestors } from '../utils/contextResolver';
-import { STARTER_TEMPLATES } from './mockData';
 
 const STORAGE_KEYS = {
   GRAPH: 'thoughtgraph_ai_active_graph',
@@ -29,17 +28,25 @@ export const DEFAULT_SETTINGS: AppSettings = {
   customModels: [],
   autoLayoutOnAdd: true,
   edgeType: 'smoothstep',
-  theme: 'monochrome',
+  theme: 'dark',
 };
 
 export function loadSettings(): AppSettings {
   try {
     const raw = localStorage.getItem(STORAGE_KEYS.SETTINGS);
-    if (!raw) return DEFAULT_SETTINGS;
+    const persistedTheme = localStorage.getItem('thoughtgraph_ai_theme');
+    if (!raw) {
+      return {
+        ...DEFAULT_SETTINGS,
+        theme: persistedTheme === 'light' ? 'light' : 'dark',
+      };
+    }
     const parsed = JSON.parse(raw);
+    const theme = persistedTheme === 'light' || parsed.theme === 'light' ? 'light' : 'dark';
     return {
       ...DEFAULT_SETTINGS,
       ...parsed,
+      theme,
       provider: parsed.provider || (parsed.openRouterApiKey ? 'openrouter' : parsed.apiKey ? 'gemini' : 'openrouter'),
       openRouterApiKey: parsed.openRouterApiKey || '',
     };
@@ -138,8 +145,8 @@ export function loadSessionsIndex(): GraphSessionMeta[] {
     // First time migration: convert existing active graph into the initial session
     const existingActive = loadGraphState();
     const initialSessionId = `session-${Date.now()}`;
-    const initialNodes = existingActive?.nodes || STARTER_TEMPLATES.ai_architecture.nodes;
-    const initialEdges = existingActive?.edges || STARTER_TEMPLATES.ai_architecture.edges;
+    const initialNodes = existingActive?.nodes || [];
+    const initialEdges = existingActive?.edges || [];
     const initialParent = existingActive?.activeParentId ?? (initialNodes[0]?.id || null);
     const initialTitle = existingActive?.title || 'جلسة الأفكار الأولية (Initial Graph)';
 

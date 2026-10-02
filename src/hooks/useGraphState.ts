@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import {
   applyNodeChanges,
   applyEdgeChanges,
@@ -21,6 +21,12 @@ import type {
   GraphSessionMeta,
   GraphSession,
 } from '../types/graph';
+
+interface HistorySnapshot {
+  nodes: ThoughtFlowNode[];
+  edges: ThoughtFlowEdge[];
+  activeParentId: string | null;
+}
 import {
   loadSettings,
   saveSettings,
@@ -35,7 +41,6 @@ import {
   setActiveSessionId,
   extractPreviewText,
 } from '../services/storage';
-import { STARTER_TEMPLATES } from '../services/mockData';
 import { getLayoutedElements, calculateChildPosition, wouldCreateCycle } from '../utils/dagLayout';
 import {
   executeAIBranchCompletion,
@@ -62,7 +67,7 @@ export function useGraphState() {
     if (activeId && loadSession(activeId)) return activeId;
     const initialIndex = loadSessionsIndex();
     if (initialIndex.length > 0 && loadSession(initialIndex[0].id)) return initialIndex[0].id;
-    const newSess = createSession('جلسة الأفكار الأولية (Initial Graph)', STARTER_TEMPLATES.ai_architecture);
+    const newSess = createSession('جلسة أفكار جديدة (New Graph)');
     return newSess.id;
   });
 
@@ -91,9 +96,58 @@ export function useGraphState() {
   const [isSessionsOpen, setIsSessionsOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isExportOpen, setIsExportOpen] = useState(false);
-  const [isTemplatesOpen, setIsTemplatesOpen] = useState(false);
   const [isMergeModalOpen, setIsMergeModalOpen] = useState(false);
   const [inspectedNodeId, setInspectedNodeId] = useState<string | null>(null);
+
+  // History state for Undo / Redo
+  const pastRef = useRef<HistorySnapshot[]>([]);
+  const futureRef = useRef<HistorySnapshot[]>([]);
+  const [historyState, setHistoryState] = useState({ canUndo: false, canRedo: false });
+
+  const takeSnapshot = useCallback(() => {
+    pastRef.current.push({
+      nodes: JSON.parse(JSON.stringify(nodes)),
+      edges: JSON.parse(JSON.stringify(edges)),
+      activeParentId,
+    });
+    if (pastRef.current.length > 50) {
+      pastRef.current.shift();
+    }
+    futureRef.current = [];
+    setHistoryState({
+      canUndo: pastRef.current.length > 0,
+      canRedo: false,
+    });
+  }, [nodes, edges, activeParentId]);
+
+  const { canUndo, canRedo } = historyState;
+
+  // Theme state ('dark' | 'light')
+  const [theme, setThemeState] = useState<'dark' | 'light'>(() => {
+    const saved = localStorage.getItem('thoughtgraph_ai_theme');
+    if (saved === 'light' || saved === 'dark') return saved;
+    return settings.theme === 'light' ? 'light' : 'dark';
+  });
+
+  const toggleTheme = useCallback(() => {
+    setThemeState((prev) => {
+      const next = prev === 'dark' ? 'light' : 'dark';
+      localStorage.setItem('thoughtgraph_ai_theme', next);
+      setSettings((s) => ({ ...s, theme: next }));
+      saveSettings({ ...settings, theme: next });
+      return next;
+    });
+  }, [settings]);
+
+  useEffect(() => {
+    if (theme === 'light') {
+      document.documentElement.classList.add('light');
+      document.documentElement.classList.remove('dark');
+    } else {
+      document.documentElement.classList.add('dark');
+      document.documentElement.classList.remove('light');
+    }
+  }, [theme]);
 
   // Toasts
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
@@ -188,6 +242,7 @@ export function useGraphState() {
   // Delete single edge explicitly and update target node's parentIds
   const handleDeleteEdge = useCallback(
     (edgeId: string) => {
+      takeSnapshot();
       setEdges((currentEdges) => {
         const edgeToDelete = currentEdges.find((e) => e.id === edgeId);
         if (!edgeToDelete) return currentEdges;
@@ -212,7 +267,7 @@ export function useGraphState() {
       });
       addToast('info', 'Relationship removed.');
     },
-    [addToast]
+    [takeSnapshot, addToast]
   );
 
   // Connection handler creating new relationships and synchronizing parentIds
@@ -239,6 +294,8 @@ export function useGraphState() {
         addToast('error', 'Cannot create relationship: This would form a circular loop (DAG requirement).');
         return;
       }
+
+      takeSnapshot();
 
       const newEdge: ThoughtFlowEdge = {
         id: `edge-${params.source}-${params.target}-${Date.now()}`,
@@ -273,7 +330,7 @@ export function useGraphState() {
 
       addToast('success', 'New relationship connected.');
     },
-    [edges, settings.edgeType, addToast]
+    [edges, settings.edgeType, takeSnapshot, addToast]
   );
 
   // Fork a node (sets active parent)
@@ -317,17 +374,19 @@ export function useGraphState() {
 
   // Delete single node and associated edges
   const handleDeleteNode = useCallback((nodeId: string) => {
+    takeSnapshot();
     setNodes((nds) => nds.filter((n) => n.id !== nodeId));
     setEdges((eds) => eds.filter((e) => e.source !== nodeId && e.target !== nodeId));
     if (activeParentId === nodeId) setActiveParentId(null);
     if (focusNodeId === nodeId) setFocusNodeId(null);
     setSelectedForMergeIds((prev) => prev.filter((id) => id !== nodeId));
     addToast('info', 'Node deleted from canvas.');
-  }, [activeParentId, focusNodeId, addToast]);
+  }, [activeParentId, focusNodeId, takeSnapshot, addToast]);
 
   // Batch delete selected nodes
   const handleBatchDelete = useCallback((nodeIds: string[]) => {
     if (nodeIds.length === 0) return;
+    takeSnapshot();
     const idSet = new Set(nodeIds);
     setNodes((nds) => nds.filter((n) => !idSet.has(n.id)));
     setEdges((eds) => eds.filter((e) => !idSet.has(e.source) && !idSet.has(e.target)));
@@ -335,10 +394,11 @@ export function useGraphState() {
     if (focusNodeId && idSet.has(focusNodeId)) setFocusNodeId(null);
     setSelectedForMergeIds((prev) => prev.filter((id) => !idSet.has(id)));
     addToast('info', `Deleted ${nodeIds.length} nodes from canvas.`);
-  }, [activeParentId, focusNodeId, addToast]);
+  }, [activeParentId, focusNodeId, takeSnapshot, addToast]);
 
   // Auto-layout
   const handleAutoLayout = useCallback((direction: 'TB' | 'LR' = layoutDirection) => {
+    takeSnapshot();
     setLayoutDirection(direction);
     setNodes((currentNodes) => {
       setEdges((currentEdges) => {
@@ -349,7 +409,45 @@ export function useGraphState() {
       return layouted.nodes;
     });
     addToast('success', `Graph aligned (${direction === 'TB' ? 'Top-to-Bottom' : 'Left-to-Right'}).`);
-  }, [edges, layoutDirection, addToast]);
+  }, [edges, layoutDirection, takeSnapshot, addToast]);
+
+  // Undo previous action
+  const handleUndo = useCallback(() => {
+    if (pastRef.current.length === 0) return;
+    const previous = pastRef.current.pop()!;
+    futureRef.current.push({
+      nodes: JSON.parse(JSON.stringify(nodes)),
+      edges: JSON.parse(JSON.stringify(edges)),
+      activeParentId,
+    });
+    setNodes(previous.nodes);
+    setEdges(previous.edges);
+    setActiveParentId(previous.activeParentId);
+    setHistoryState({
+      canUndo: pastRef.current.length > 0,
+      canRedo: futureRef.current.length > 0,
+    });
+    addToast('info', 'تم التراجع (Undo)');
+  }, [nodes, edges, activeParentId, addToast]);
+
+  // Redo previously undone action
+  const handleRedo = useCallback(() => {
+    if (futureRef.current.length === 0) return;
+    const next = futureRef.current.pop()!;
+    pastRef.current.push({
+      nodes: JSON.parse(JSON.stringify(nodes)),
+      edges: JSON.parse(JSON.stringify(edges)),
+      activeParentId,
+    });
+    setNodes(next.nodes);
+    setEdges(next.edges);
+    setActiveParentId(next.activeParentId);
+    setHistoryState({
+      canUndo: pastRef.current.length > 0,
+      canRedo: futureRef.current.length > 0,
+    });
+    addToast('info', 'تمت الإعادة (Redo)');
+  }, [nodes, edges, activeParentId, addToast]);
 
   // Save Settings
   const handleSaveSettings = useCallback((newSettings: AppSettings) => {
@@ -375,9 +473,14 @@ export function useGraphState() {
 
   // Reset Canvas to Blank (or create fresh session)
   const handleResetCanvas = useCallback(() => {
-    handleLoadGraph(STARTER_TEMPLATES.blank_canvas);
+    takeSnapshot();
+    setNodes([]);
+    setEdges([]);
+    setActiveParentId(null);
+    setFocusNodeId(null);
+    setSelectedForMergeIds([]);
     addToast('info', 'تمت تهيئة الكانفاس لمساحة عمل فارغة جديدة.');
-  }, [handleLoadGraph, addToast]);
+  }, [takeSnapshot, addToast]);
 
   // Switch to another session
   const handleSwitchSession = useCallback((sessionId: string) => {
@@ -386,6 +489,10 @@ export function useGraphState() {
       addToast('error', 'تعذر العثور على بيانات الجلسة المطلوبة.');
       return;
     }
+
+    pastRef.current = [];
+    futureRef.current = [];
+    setHistoryState({ canUndo: false, canRedo: false });
 
     setCurrentSessionId(targetSession.id);
     setCurrentSessionTitle(targetSession.title);
@@ -474,6 +581,7 @@ export function useGraphState() {
     async (userPrompt: string, modelId: string, parentOverride?: string) => {
       if (!userPrompt.trim() || isGenerating) return;
 
+      takeSnapshot();
       setIsGenerating(true);
 
       const timestamp = Date.now();
@@ -640,6 +748,7 @@ export function useGraphState() {
       isGenerating,
       settings,
       layoutDirection,
+      takeSnapshot,
       handleAutoLayout,
       addToast,
     ]
@@ -757,6 +866,8 @@ export function useGraphState() {
         return;
       }
 
+      takeSnapshot();
+
       const updatedNodes = nodes.map((n) =>
         n.id === nodeId
           ? {
@@ -790,7 +901,7 @@ export function useGraphState() {
         addToast('success', 'تم حفظ التعديل بنجاح.');
       }
     },
-    [nodes, edges, handleRetryNode, addToast]
+    [nodes, edges, handleRetryNode, takeSnapshot, addToast]
   );
 
   /**
@@ -800,6 +911,7 @@ export function useGraphState() {
     async (synthesisPrompt: string, modelId: string) => {
       if (selectedForMergeIds.length < 2 || isGenerating) return;
 
+      takeSnapshot();
       setIsGenerating(true);
       setIsMergeModalOpen(false);
 
@@ -935,6 +1047,7 @@ export function useGraphState() {
       edges,
       settings,
       layoutDirection,
+      takeSnapshot,
       handleAutoLayout,
       addToast,
     ]
@@ -964,6 +1077,14 @@ export function useGraphState() {
     toasts,
     dismissToast,
 
+    // Theme & Undo/Redo
+    theme,
+    toggleTheme,
+    canUndo,
+    canRedo,
+    handleUndo,
+    handleRedo,
+
     // Focus Flow
     focusNodeId,
     isFocusFlowOpen,
@@ -977,8 +1098,6 @@ export function useGraphState() {
     setIsSettingsOpen,
     isExportOpen,
     setIsExportOpen,
-    isTemplatesOpen,
-    setIsTemplatesOpen,
     isMergeModalOpen,
     setIsMergeModalOpen,
     inspectedNodeId,

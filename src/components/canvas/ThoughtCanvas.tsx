@@ -42,10 +42,12 @@ interface ThoughtCanvasProps {
   onOpenMergeModal: () => void;
   onClearMergeSelection: () => void;
   onNewGenesisThought: () => void;
-  onOpenTemplates: () => void;
   onOpenSessions?: () => void;
   onBatchDelete: (nodeIds: string[]) => void;
   onDeleteEdge?: (edgeId: string) => void;
+  theme?: 'dark' | 'light' | 'monochrome';
+  onUndo?: () => void;
+  onRedo?: () => void;
 }
 
 export const ThoughtCanvas: React.FC<ThoughtCanvasProps> = ({
@@ -70,10 +72,12 @@ export const ThoughtCanvas: React.FC<ThoughtCanvasProps> = ({
   onOpenMergeModal,
   onClearMergeSelection,
   onNewGenesisThought,
-  onOpenTemplates,
   onOpenSessions,
   onBatchDelete,
   onDeleteEdge,
+  theme = 'dark',
+  onUndo,
+  onRedo,
 }) => {
   // Context Menu State
   const [contextMenu, setContextMenu] = useState<ContextMenuState>({
@@ -88,7 +92,7 @@ export const ThoughtCanvas: React.FC<ThoughtCanvasProps> = ({
     return Array.from(new Set([...selected, ...selectedForMergeIds]));
   }, [nodes, selectedForMergeIds]);
 
-  // Global Keyboard shortcuts for deleting selected nodes and edges
+  // Global Keyboard shortcuts for deleting selected nodes/edges and Undo/Redo
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const activeEl = document.activeElement as HTMLElement | null;
@@ -99,6 +103,29 @@ export const ThoughtCanvas: React.FC<ThoughtCanvasProps> = ({
           activeEl.isContentEditable ||
           activeEl.closest('input, textarea, [contenteditable="true"]'))
       ) {
+        return;
+      }
+
+      // Undo / Redo Shortcuts (Ctrl+Z / Ctrl+Y / Ctrl+Shift+Z)
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
+        if (e.shiftKey) {
+          if (onRedo) {
+            e.preventDefault();
+            onRedo();
+          }
+        } else {
+          if (onUndo) {
+            e.preventDefault();
+            onUndo();
+          }
+        }
+        return;
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') {
+        if (onRedo) {
+          e.preventDefault();
+          onRedo();
+        }
         return;
       }
 
@@ -123,7 +150,7 @@ export const ThoughtCanvas: React.FC<ThoughtCanvasProps> = ({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [multiSelectedNodeIds, edges, onBatchDelete, onDeleteEdge]);
+  }, [multiSelectedNodeIds, edges, onBatchDelete, onDeleteEdge, onUndo, onRedo]);
 
   // Static node types object
   const nodeTypes = useMemo(
@@ -219,7 +246,7 @@ export const ThoughtCanvas: React.FC<ThoughtCanvasProps> = ({
 
   return (
     <NodeActionsProvider value={actionsContextValue}>
-      <div className="relative w-full h-[calc(100vh-3.5rem)] overflow-hidden bg-black select-none">
+      <div className="relative w-full h-[calc(100vh-3.5rem)] overflow-hidden bg-zinc-50 dark:bg-black select-none">
         <ReactFlow
           nodes={nodes}
           edges={edges}
@@ -250,7 +277,7 @@ export const ThoughtCanvas: React.FC<ThoughtCanvasProps> = ({
             variant={BackgroundVariant.Dots}
             gap={24}
             size={1.5}
-            color="#27272a"
+            color={theme === 'light' ? '#cbd5e1' : '#27272a'}
           />
 
           {showMinimap && (
@@ -261,16 +288,22 @@ export const ThoughtCanvas: React.FC<ThoughtCanvasProps> = ({
               nodeColor={(node) => {
                 const data = node.data as { role?: string; isMergeNode?: boolean };
                 if (data?.isMergeNode) return '#a855f7';
-                return data?.role === 'user' ? '#e4e4e7' : '#71717a';
+                return data?.role === 'user'
+                  ? theme === 'light'
+                    ? '#09090b'
+                    : '#e4e4e7'
+                  : theme === 'light'
+                  ? '#94a3b8'
+                  : '#71717a';
               }}
-              maskColor="rgba(9, 9, 11, 0.8)"
+              maskColor={theme === 'light' ? 'rgba(241, 245, 249, 0.7)' : 'rgba(9, 9, 11, 0.8)'}
               style={{
                 position: 'absolute',
                 bottom: 24,
                 right: 24,
-                border: '1px solid #27272a',
+                border: theme === 'light' ? '1px solid #e2e8f0' : '1px solid #27272a',
                 borderRadius: '12px',
-                backgroundColor: '#09090b',
+                backgroundColor: theme === 'light' ? '#ffffff' : '#09090b',
               }}
             />
           )}
@@ -307,7 +340,6 @@ export const ThoughtCanvas: React.FC<ThoughtCanvasProps> = ({
           onNewGenesisThought={onNewGenesisThought}
           onAutoLayout={onAutoLayout}
           onFitView={() => onAutoLayout(layoutDirection)}
-          onOpenTemplates={onOpenTemplates}
           onOpenSessions={onOpenSessions}
           isSelectedForMerge={
             Boolean(contextMenu.nodeId && selectedForMergeIds.includes(contextMenu.nodeId))
