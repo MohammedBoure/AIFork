@@ -17,6 +17,7 @@ import {
   Trash2,
   ArrowDownUp,
   ArrowLeftRight,
+  Package,
 } from 'lucide-react';
 import type { AppSettings, ModelOption, AIProvider, ApiKeyItem } from '../../types/graph';
 import { testGeminiApiKey, fetchAvailableGeminiModels, DEFAULT_PRESET_MODELS } from '../../services/gemini';
@@ -829,6 +830,27 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
               <p className="text-[11px] text-zinc-500 mt-1">
                 {(formState.layoutDirection || 'TB') === 'TB' ? t.layout.forwardDesc : t.layout.sidewaysDesc}
               </p>
+            </div>
+
+            {/* Containers by Default Toggle */}
+            <div className="flex items-start justify-between gap-3 pt-3 border-t border-zinc-850/70">
+              <div className="space-y-0.5">
+                <span className="text-xs text-zinc-200 block font-medium flex items-center gap-1.5">
+                  <Package className="w-3.5 h-3.5 text-zinc-400" />
+                  <span>{t.containers.settingLabel}</span>
+                </span>
+                <span className="text-[11px] text-zinc-500 block leading-relaxed">
+                  {t.containers.settingSubtext}
+                </span>
+              </div>
+              <input
+                type="checkbox"
+                checked={Boolean(formState.collapseNodesByDefault)}
+                onChange={(e) =>
+                  setFormState({ ...formState, collapseNodesByDefault: e.target.checked })
+                }
+                className="w-4 h-4 accent-zinc-100 rounded bg-zinc-800 border-zinc-700 cursor-pointer mt-0.5"
+              />
             </div>
           </div>
 

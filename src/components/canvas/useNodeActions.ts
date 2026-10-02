@@ -13,6 +13,7 @@ export function useNodeActions(): NodeActionsContextValue {
       onInspectNode: () => {},
       onRetryNode: () => {},
       onUpdateNodeContent: () => {},
+      onToggleCollapseNode: () => {},
       selectedForMergeIds: [],
       activeParentId: null,
     };

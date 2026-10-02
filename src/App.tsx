@@ -80,6 +80,9 @@ export function ThoughtGraphApp() {
     handleRetryNode,
     handleUpdateNodeContent,
     handleAutoLayout,
+    handleToggleCollapseNode,
+    handleToggleCollapseAll,
+    allCollapsed,
     handleSaveSettings,
     handleLoadGraph,
     handleResetCanvas,
@@ -131,6 +134,8 @@ export function ThoughtGraphApp() {
         onRedo={handleRedo}
         theme={theme}
         onToggleTheme={toggleTheme}
+        allCollapsed={allCollapsed}
+        onToggleCollapseAll={handleToggleCollapseAll}
       />
 
       {/* Main Interactive DAG Canvas */}
@@ -169,6 +174,9 @@ export function ThoughtGraphApp() {
           canRedo={canRedo}
           onUndo={handleUndo}
           onRedo={handleRedo}
+          onToggleCollapseNode={handleToggleCollapseNode}
+          onToggleCollapseAll={handleToggleCollapseAll}
+          allCollapsed={allCollapsed}
         />
 
         {/* Floating Fork & Ideation Prompt Bar */}

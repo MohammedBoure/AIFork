@@ -571,6 +571,49 @@ export function useGraphState() {
     [layoutDirection, handleSwitchSession, addToast]
   );
 
+  // Toggle container state (collapse / expand on demand) for an individual node
+  const handleToggleCollapseNode = useCallback((nodeId: string) => {
+    setNodes((nds) =>
+      nds.map((n) =>
+        n.id === nodeId
+          ? {
+              ...n,
+              data: {
+                ...n.data,
+                isCollapsed: !n.data.isCollapsed,
+              },
+            }
+          : n
+      )
+    );
+  }, []);
+
+  // Toggle container state for all nodes (containerize all or expand all)
+  const handleToggleCollapseAll = useCallback(() => {
+    setNodes((nds) => {
+      const allCollapsed = nds.length > 0 && nds.every((n) => n.data.isCollapsed);
+      const targetState = !allCollapsed;
+      const updated = nds.map((n) => ({
+        ...n,
+        data: {
+          ...n.data,
+          isCollapsed: targetState,
+        },
+      }));
+      if (settings.autoLayoutOnAdd) {
+        const layouted = getLayoutedElements(updated, edges, layoutDirection);
+        setTimeout(() => setNodes(layouted.nodes), 0);
+      }
+      addToast(
+        'info',
+        targetState
+          ? 'تم وضع كافة نصوص الأسئلة والردود في حاويات (إخفاء إلا عند الطلب)'
+          : 'تم توسيع كافة الحاويات وعرض النصوص كاملة'
+      );
+      return updated;
+    });
+  }, [edges, layoutDirection, settings.autoLayoutOnAdd, addToast]);
+
   // Delete a session
   const handleDeleteSession = useCallback((sessionId: string) => {
     const wasActive = sessionId === currentSessionId;
@@ -667,6 +710,7 @@ export function useGraphState() {
           parentIds,
           createdAt: timestamp,
           status: 'idle',
+          isCollapsed: Boolean(settings.collapseNodesByDefault),
           branchLabel: targetParent ? 'Forked Branch' : 'Root Idea',
         },
       };
@@ -764,6 +808,7 @@ export function useGraphState() {
                     modelUsed: actualModel,
                     status: 'idle',
                     tokens: result.tokens,
+                    isCollapsed: Boolean(settings.collapseNodesByDefault),
                   },
                 }
               : n
@@ -1084,6 +1129,7 @@ export function useGraphState() {
                     modelUsed: actualModel,
                     status: 'idle',
                     tokens: result.tokens,
+                    isCollapsed: Boolean(settings.collapseNodesByDefault),
                   },
                 }
               : n
@@ -1218,6 +1264,9 @@ export function useGraphState() {
     handleRetryNode,
     handleUpdateNodeContent,
     handleAutoLayout,
+    handleToggleCollapseNode,
+    handleToggleCollapseAll,
+    allCollapsed: nodes.length > 0 && nodes.every((n) => n.data.isCollapsed),
     handleSaveSettings,
     handleLoadGraph,
     handleResetCanvas,

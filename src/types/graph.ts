@@ -19,6 +19,7 @@ export interface ThoughtNodeData extends Record<string, unknown> {
     candidatesTokens?: number;
     totalTokens?: number;
   };
+  isCollapsed?: boolean; // When true, the node's text is placed in a special container (hidden until requested)
 }
 
 /**
@@ -87,6 +88,7 @@ export interface AppSettings {
   edgeType: 'smoothstep' | 'bezier' | 'straight';
   theme: 'dark' | 'light' | 'monochrome';
   layoutDirection?: 'TB' | 'LR';
+  collapseNodesByDefault?: boolean; // When true, question and response texts start inside containers, revealing content only upon request
 }
 
 /**

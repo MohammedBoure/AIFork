@@ -36,6 +36,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   edgeType: 'smoothstep',
   theme: 'dark',
   layoutDirection: 'TB',
+  collapseNodesByDefault: false,
 };
 
 export function loadSettings(): AppSettings {

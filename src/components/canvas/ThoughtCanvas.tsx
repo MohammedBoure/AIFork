@@ -50,6 +50,9 @@ interface ThoughtCanvasProps {
   canRedo?: boolean;
   onUndo?: () => void;
   onRedo?: () => void;
+  onToggleCollapseNode?: (nodeId: string) => void;
+  onToggleCollapseAll?: () => void;
+  allCollapsed?: boolean;
 }
 
 export const ThoughtCanvas: React.FC<ThoughtCanvasProps> = ({
@@ -82,6 +85,9 @@ export const ThoughtCanvas: React.FC<ThoughtCanvasProps> = ({
   canRedo = false,
   onUndo,
   onRedo,
+  onToggleCollapseNode,
+  onToggleCollapseAll,
+  allCollapsed = false,
 }) => {
   // Context Menu State
   const [contextMenu, setContextMenu] = useState<ContextMenuState>({
@@ -196,6 +202,7 @@ export const ThoughtCanvas: React.FC<ThoughtCanvasProps> = ({
       onInspectNode,
       onRetryNode,
       onUpdateNodeContent,
+      onToggleCollapseNode,
       selectedForMergeIds,
       activeParentId,
       theme,
@@ -209,6 +216,7 @@ export const ThoughtCanvas: React.FC<ThoughtCanvasProps> = ({
       onInspectNode,
       onRetryNode,
       onUpdateNodeContent,
+      onToggleCollapseNode,
       selectedForMergeIds,
       activeParentId,
       theme,
@@ -337,6 +345,8 @@ export const ThoughtCanvas: React.FC<ThoughtCanvasProps> = ({
           canRedo={canRedo}
           onUndo={onUndo}
           onRedo={onRedo}
+          onToggleCollapseAll={onToggleCollapseAll}
+          allCollapsed={allCollapsed}
         />
 
         {/* Batch Action Dock for Multi-Selection & Quick Deletion */}

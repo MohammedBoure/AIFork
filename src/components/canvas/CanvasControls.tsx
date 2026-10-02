@@ -8,6 +8,7 @@ import {
   ArrowLeftRight,
   Undo2,
   Redo2,
+  Package,
 } from 'lucide-react';
 import { useReactFlow } from '@xyflow/react';
 import { useLanguage } from '../../i18n/useLanguage';
@@ -17,6 +18,8 @@ interface CanvasControlsProps {
   layoutDirection: 'TB' | 'LR';
   showMinimap: boolean;
   onToggleMinimap: () => void;
+  onToggleCollapseAll?: () => void;
+  allCollapsed?: boolean;
   canUndo?: boolean;
   canRedo?: boolean;
   onUndo?: () => void;
@@ -28,6 +31,8 @@ export const CanvasControls: React.FC<CanvasControlsProps> = ({
   layoutDirection,
   showMinimap,
   onToggleMinimap,
+  onToggleCollapseAll,
+  allCollapsed = false,
   canUndo = false,
   canRedo = false,
   onUndo,
@@ -111,6 +116,22 @@ export const CanvasControls: React.FC<CanvasControlsProps> = ({
           <ArrowLeftRight className="w-4 h-4 text-zinc-900 dark:text-zinc-100" />
         )}
       </button>
+
+      {/* Containerize All / Expand All Toggle */}
+      {onToggleCollapseAll && (
+        <button
+          onClick={onToggleCollapseAll}
+          className={`p-2 rounded-xl transition-all cursor-pointer ${
+            allCollapsed
+              ? 'bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-950 font-semibold shadow-xs'
+              : 'text-zinc-600 hover:text-zinc-950 dark:text-zinc-300 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800/80'
+          }`}
+          title={allCollapsed ? t.containers.expandAll : t.containers.containerizeAll}
+          type="button"
+        >
+          <Package className="w-4 h-4" />
+        </button>
+      )}
 
       {/* Minimap toggle */}
       <button

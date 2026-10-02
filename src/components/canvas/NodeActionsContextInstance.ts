@@ -9,6 +9,7 @@ export interface NodeActionsContextValue {
   onInspectNode: (nodeId: string) => void;
   onRetryNode: (nodeId: string, overrideModelId?: string) => void;
   onUpdateNodeContent: (nodeId: string, newContent: string, regenerateChildren?: boolean) => void;
+  onToggleCollapseNode?: (nodeId: string) => void;
   selectedForMergeIds: string[];
   activeParentId: string | null;
   theme?: 'dark' | 'light' | 'monochrome';

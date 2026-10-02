@@ -34,9 +34,12 @@ export function getLayoutedElements(
   });
 
   nodes.forEach((node) => {
+    const isCollapsed = Boolean(node.data.isCollapsed);
     const contentLength = node.data.content ? node.data.content.length : 0;
-    // Clamped realistic height calculation matching max-h-72 (288px) + header + actions
-    const estimatedHeight = Math.min(Math.max(220, 180 + Math.floor(contentLength / 4)), 400);
+    // Clamped realistic height calculation matching max-h-72 (288px) + header + actions, or compact container (120px)
+    const estimatedHeight = isCollapsed
+      ? 120
+      : Math.min(Math.max(220, 180 + Math.floor(contentLength / 4)), 400);
 
     dagreGraph.setNode(node.id, {
       width: NODE_WIDTH,
@@ -52,8 +55,11 @@ export function getLayoutedElements(
 
   const layoutedNodes: ThoughtFlowNode[] = nodes.map((node) => {
     const nodeWithPosition = dagreGraph.node(node.id);
+    const isCollapsed = Boolean(node.data.isCollapsed);
     const contentLength = node.data.content ? node.data.content.length : 0;
-    const estimatedHeight = Math.min(Math.max(220, 180 + Math.floor(contentLength / 4)), 400);
+    const estimatedHeight = isCollapsed
+      ? 120
+      : Math.min(Math.max(220, 180 + Math.floor(contentLength / 4)), 400);
 
     return {
       ...node,

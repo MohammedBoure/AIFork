@@ -15,6 +15,7 @@ import {
   Moon,
   ArrowDownUp,
   ArrowLeftRight,
+  Package,
 } from 'lucide-react';
 import { Badge } from './Badge';
 import { useLanguage } from '../../i18n/useLanguage';
@@ -44,6 +45,8 @@ interface NavbarProps {
   onRedo?: () => void;
   theme?: 'dark' | 'light';
   onToggleTheme?: () => void;
+  allCollapsed?: boolean;
+  onToggleCollapseAll?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -71,6 +74,8 @@ export const Navbar: React.FC<NavbarProps> = ({
   onRedo,
   theme = 'dark',
   onToggleTheme,
+  allCollapsed = false,
+  onToggleCollapseAll,
 }) => {
   const { t, language, toggleLanguage } = useLanguage();
 
@@ -186,6 +191,24 @@ export const Navbar: React.FC<NavbarProps> = ({
             {layoutDirection === 'TB' ? t.layout.forwardShort : t.layout.sidewaysShort}
           </span>
         </button>
+
+        {/* Toggle Collapse All in Containers */}
+        {onToggleCollapseAll && (
+          <button
+            onClick={onToggleCollapseAll}
+            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs transition-colors border cursor-pointer ${
+              allCollapsed
+                ? 'bg-zinc-950 text-white dark:bg-zinc-100 dark:text-zinc-950 border-zinc-950 dark:border-zinc-100 shadow-sm'
+                : 'text-zinc-700 dark:text-zinc-300 hover:text-zinc-950 dark:hover:text-white bg-zinc-100 dark:bg-zinc-900 hover:bg-zinc-200 dark:hover:bg-zinc-800 border-zinc-200 dark:border-zinc-800'
+            }`}
+            title={allCollapsed ? t.containers.expandAllTooltip : t.containers.collapseAllTooltip}
+          >
+            <Package className="w-3.5 h-3.5" />
+            <span className="hidden md:inline font-medium">
+              {allCollapsed ? t.containers.expandAllShort : t.containers.collapseAllShort}
+            </span>
+          </button>
+        )}
 
         {/* Export / Import */}
         <button
