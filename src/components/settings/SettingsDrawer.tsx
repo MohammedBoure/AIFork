@@ -13,8 +13,10 @@ import {
   Layers,
   ExternalLink,
   Languages,
+  Plus,
+  Trash2,
 } from 'lucide-react';
-import type { AppSettings, ModelOption, AIProvider } from '../../types/graph';
+import type { AppSettings, ModelOption, AIProvider, ApiKeyItem } from '../../types/graph';
 import { testGeminiApiKey, fetchAvailableGeminiModels, DEFAULT_PRESET_MODELS } from '../../services/gemini';
 import {
   testOpenRouterApiKey,
@@ -33,6 +35,12 @@ interface SettingsDrawerProps {
   onUpdateAvailableModels: (models: ModelOption[]) => void;
 }
 
+function maskApiKey(key: string): string {
+  if (!key) return '';
+  if (key.length <= 10) return '••••••••';
+  return `${key.slice(0, 6)}••••${key.slice(-4)}`;
+}
+
 export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
   isOpen,
   onClose,
@@ -43,7 +51,6 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
 }) => {
   const { t, language, setLanguage } = useLanguage();
   const [formState, setFormState] = useState<AppSettings>(settings);
-  const [showKey, setShowKey] = useState(false);
   const [testStatus, setTestStatus] = useState<{
     loading: boolean;
     success?: boolean;
@@ -51,7 +58,20 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
   }>({ loading: false });
   const [isFetchingModels, setIsFetchingModels] = useState(false);
 
+  // Multi-key state
+  const [isAddingKey, setIsAddingKey] = useState(false);
+  const [newKeyName, setNewKeyName] = useState('');
+  const [newKeyValue, setNewKeyValue] = useState('');
+  const [showNewKey, setShowNewKey] = useState(false);
+  const [keyInputError, setKeyInputError] = useState<string | null>(null);
+  const [keyActionNotice, setKeyActionNotice] = useState<string | null>(null);
+  const [testingKeyId, setTestingKeyId] = useState<string | null>(null);
+
   if (!isOpen) return null;
+
+  const isOpenRouter = formState.provider === 'openrouter';
+  const providerKeys = (formState.apiKeys || []).filter((k) => k.provider === formState.provider);
+  const activeKeyId = isOpenRouter ? formState.activeOpenRouterKeyId : formState.activeGeminiKeyId;
 
   const handleProviderChange = (provider: AIProvider) => {
     let newDefault = formState.defaultModel;
@@ -74,12 +94,165 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
       defaultMergeModel: newMerge,
     });
     setTestStatus({ loading: false });
+    setIsAddingKey(false);
+    setKeyInputError(null);
   };
 
-  const handleTestKey = async () => {
-    setTestStatus({ loading: true });
+  const handleAddKey = () => {
+    if (!newKeyName.trim()) {
+      setKeyInputError(t.multiKey.keyNameRequired);
+      return;
+    }
+    if (!newKeyValue.trim()) {
+      setKeyInputError(t.multiKey.keyValueRequired);
+      return;
+    }
+
+    const newKeyItem: ApiKeyItem = {
+      id: `${formState.provider}-key-${Date.now()}`,
+      name: newKeyName.trim(),
+      key: newKeyValue.trim(),
+      provider: formState.provider,
+      createdAt: Date.now(),
+    };
+
+    const updatedKeys = [...(formState.apiKeys || []), newKeyItem];
+    const isFirstKeyForProvider = providerKeys.length === 0;
+
+    let newActiveGeminiId = formState.activeGeminiKeyId;
+    let newActiveORId = formState.activeOpenRouterKeyId;
+    let newGeminiKey = formState.apiKey;
+    let newORKey = formState.openRouterApiKey;
+
+    if (isFirstKeyForProvider || !activeKeyId) {
+      if (formState.provider === 'openrouter') {
+        newActiveORId = newKeyItem.id;
+        newORKey = newKeyItem.key;
+      } else {
+        newActiveGeminiId = newKeyItem.id;
+        newGeminiKey = newKeyItem.key;
+      }
+    }
+
+    setFormState({
+      ...formState,
+      apiKeys: updatedKeys,
+      activeGeminiKeyId: newActiveGeminiId,
+      activeOpenRouterKeyId: newActiveORId,
+      apiKey: newGeminiKey,
+      openRouterApiKey: newORKey,
+    });
+
+    setNewKeyName('');
+    setNewKeyValue('');
+    setIsAddingKey(false);
+    setKeyInputError(null);
+    setKeyActionNotice(t.multiKey.keyAddedSuccess);
+    setTimeout(() => setKeyActionNotice(null), 3000);
+  };
+
+  const handleActivateKey = (keyId: string) => {
+    const selectedKey = (formState.apiKeys || []).find((k) => k.id === keyId);
+    if (!selectedKey) return;
 
     if (formState.provider === 'openrouter') {
+      setFormState({
+        ...formState,
+        activeOpenRouterKeyId: selectedKey.id,
+        openRouterApiKey: selectedKey.key,
+      });
+    } else {
+      setFormState({
+        ...formState,
+        activeGeminiKeyId: selectedKey.id,
+        apiKey: selectedKey.key,
+      });
+    }
+
+    setKeyActionNotice(t.multiKey.keyActivatedSuccess);
+    setTestStatus({ loading: false });
+    setTimeout(() => setKeyActionNotice(null), 3000);
+  };
+
+  const handleDeleteKey = (keyId: string) => {
+    if (!window.confirm(t.multiKey.confirmDelete)) return;
+
+    const remainingKeys = (formState.apiKeys || []).filter((k) => k.id !== keyId);
+    const remainingProviderKeys = remainingKeys.filter((k) => k.provider === formState.provider);
+
+    let newActiveGeminiId = formState.activeGeminiKeyId;
+    let newActiveORId = formState.activeOpenRouterKeyId;
+    let newGeminiKey = formState.apiKey;
+    let newORKey = formState.openRouterApiKey;
+
+    if (formState.provider === 'openrouter' && formState.activeOpenRouterKeyId === keyId) {
+      const nextKey = remainingProviderKeys[0];
+      newActiveORId = nextKey?.id;
+      newORKey = nextKey ? nextKey.key : '';
+    } else if (formState.provider === 'gemini' && formState.activeGeminiKeyId === keyId) {
+      const nextKey = remainingProviderKeys[0];
+      newActiveGeminiId = nextKey?.id;
+      newGeminiKey = nextKey ? nextKey.key : '';
+    }
+
+    setFormState({
+      ...formState,
+      apiKeys: remainingKeys,
+      activeGeminiKeyId: newActiveGeminiId,
+      activeOpenRouterKeyId: newActiveORId,
+      apiKey: newGeminiKey,
+      openRouterApiKey: newORKey,
+    });
+
+    setKeyActionNotice(t.multiKey.keyDeletedSuccess);
+    setTimeout(() => setKeyActionNotice(null), 3000);
+  };
+
+  const handleTestSpecificKey = async (keyItem: ApiKeyItem) => {
+    setTestingKeyId(keyItem.id);
+    setTestStatus({ loading: true });
+
+    try {
+      if (keyItem.provider === 'openrouter') {
+        const result = await testOpenRouterApiKey(keyItem.key);
+        setTestStatus({
+          loading: false,
+          success: result.success,
+          message: `[${keyItem.name}] ${result.message}`,
+        });
+      } else {
+        const result = await testGeminiApiKey(keyItem.key);
+        setTestStatus({
+          loading: false,
+          success: result.success,
+          message: `[${keyItem.name}] ${result.message}`,
+        });
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Key test failed';
+      setTestStatus({
+        loading: false,
+        success: false,
+        message: `[${keyItem.name}] ${msg}`,
+      });
+    } finally {
+      setTestingKeyId(null);
+    }
+  };
+
+  const handleTestActiveKey = async () => {
+    const currentKey = isOpenRouter ? formState.openRouterApiKey : formState.apiKey;
+    if (!currentKey) {
+      setTestStatus({
+        loading: false,
+        success: false,
+        message: isOpenRouter ? 'OpenRouter API key is empty.' : 'Google Gemini API key is empty.',
+      });
+      return;
+    }
+
+    setTestStatus({ loading: true });
+    if (isOpenRouter) {
       const result = await testOpenRouterApiKey(formState.openRouterApiKey);
       setTestStatus({
         loading: false,
@@ -97,23 +270,20 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
   };
 
   const handleFetchModels = async () => {
-    const currentKey =
-      formState.provider === 'openrouter'
-        ? formState.openRouterApiKey
-        : formState.apiKey;
+    const currentKey = isOpenRouter ? formState.openRouterApiKey : formState.apiKey;
 
     if (!currentKey && formState.provider === 'gemini') {
       setTestStatus({
         loading: false,
         success: false,
-        message: 'Please enter a Google Gemini API key first.',
+        message: 'Please activate or add a Google Gemini API key first.',
       });
       return;
     }
 
     setIsFetchingModels(true);
     try {
-      if (formState.provider === 'openrouter') {
+      if (isOpenRouter) {
         const models = await fetchAvailableOpenRouterModels(formState.openRouterApiKey);
         onUpdateAvailableModels(models);
         setTestStatus({
@@ -147,8 +317,6 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
     onClose();
   };
 
-  const isOpenRouter = formState.provider === 'openrouter';
-
   return (
     <div className="fixed inset-0 z-50 overflow-hidden flex justify-end animate-in fade-in duration-200">
       <div className="fixed inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
@@ -175,7 +343,7 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
           <div className="space-y-2">
             <label className="font-medium text-zinc-200 flex items-center gap-1.5 text-xs">
               <Cpu className="w-3.5 h-3.5 text-zinc-300" />
-              Active AI Provider
+              {t.settings.provider}
             </label>
             <div className="grid grid-cols-2 gap-2 p-1 bg-zinc-900 rounded-xl border border-zinc-800">
               <button
@@ -212,13 +380,19 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
             </div>
           </div>
 
-          {/* Provider-Specific API Key Section */}
-          <div className="space-y-2.5 pt-2 border-t border-zinc-850">
+          {/* Multi-Key API Manager Section */}
+          <div className="space-y-3 pt-2 border-t border-zinc-850">
             <div className="flex items-center justify-between">
-              <label className="font-medium text-zinc-200 flex items-center gap-1.5 text-xs">
-                <KeyRound className="w-3.5 h-3.5 text-zinc-300" />
-                {isOpenRouter ? 'OpenRouter API Key' : 'Google Gemini API Key'}
-              </label>
+              <div>
+                <label className="font-semibold text-zinc-100 flex items-center gap-1.5 text-xs">
+                  <KeyRound className="w-3.5 h-3.5 text-zinc-300" />
+                  <span>{t.multiKey.title}</span>
+                </label>
+                <p className="text-[11px] text-zinc-400 mt-0.5 leading-relaxed">
+                  {t.multiKey.subtitle}
+                </p>
+              </div>
+
               <a
                 href={
                   isOpenRouter
@@ -227,65 +401,239 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
                 }
                 target="_blank"
                 rel="noreferrer"
-                className="text-[11px] text-zinc-300 hover:text-white underline flex items-center gap-1"
+                className="text-[11px] text-zinc-300 hover:text-white underline flex items-center gap-1 shrink-0"
               >
                 <span>{isOpenRouter ? 'Get OpenRouter Key' : 'Get Gemini Key'}</span>
                 <ExternalLink className="w-3 h-3" />
               </a>
             </div>
 
-            <div className="relative">
+            {/* Auto-Switching on Quota Limit Checkbox */}
+            <div className="p-3 bg-zinc-900/70 border border-zinc-800 rounded-xl flex items-start gap-2.5">
               <input
-                type={showKey ? 'text' : 'password'}
-                value={isOpenRouter ? formState.openRouterApiKey : formState.apiKey}
-                onChange={(e) => {
-                  if (isOpenRouter) {
-                    setFormState({ ...formState, openRouterApiKey: e.target.value });
-                  } else {
-                    setFormState({ ...formState, apiKey: e.target.value });
-                  }
-                  setTestStatus({ loading: false });
-                }}
-                placeholder={isOpenRouter ? 'sk-or-v1-...' : 'AIzaSy...'}
-                className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 pr-10 text-xs font-mono text-zinc-100 focus:outline-none focus:border-zinc-400 transition-colors"
+                id="autoSwitchQuota"
+                type="checkbox"
+                checked={formState.autoSwitchKeyOnQuota !== false}
+                onChange={(e) =>
+                  setFormState({ ...formState, autoSwitchKeyOnQuota: e.target.checked })
+                }
+                className="w-4 h-4 accent-zinc-100 rounded bg-zinc-800 border-zinc-700 mt-0.5 cursor-pointer"
               />
-              <button
-                type="button"
-                onClick={() => setShowKey(!showKey)}
-                className="absolute right-2.5 top-2.5 text-zinc-400 hover:text-zinc-200"
-              >
-                {showKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-              </button>
+              <label htmlFor="autoSwitchQuota" className="cursor-pointer select-none space-y-0.5">
+                <span className="text-xs font-medium text-zinc-200 block">
+                  {t.multiKey.autoSwitchQuotaLabel}
+                </span>
+                <span className="text-[11px] text-zinc-400 block leading-normal">
+                  {t.multiKey.autoSwitchQuotaHint}
+                </span>
+              </label>
             </div>
 
+            {/* Key Action Feedback Banner */}
+            {keyActionNotice && (
+              <div className="p-2.5 rounded-lg text-xs flex items-center gap-2 bg-emerald-950/60 border border-emerald-600/50 text-emerald-300 animate-in fade-in">
+                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                <span>{keyActionNotice}</span>
+              </div>
+            )}
+
+            {/* List of Saved Keys for Current Provider */}
+            <div className="space-y-2">
+              {providerKeys.length === 0 ? (
+                <div className="p-4 rounded-xl bg-zinc-900/50 border border-dashed border-zinc-800 text-center space-y-2">
+                  <p className="text-xs text-zinc-400">{t.multiKey.noKeys}</p>
+                </div>
+              ) : (
+                providerKeys.map((item) => {
+                  const isActive = item.id === activeKeyId;
+                  const isTesting = testingKeyId === item.id;
+
+                  return (
+                    <div
+                      key={item.id}
+                      className={`p-3 rounded-xl border transition-all ${
+                        isActive
+                          ? 'bg-zinc-900 border-zinc-600 shadow-sm'
+                          : 'bg-zinc-900/50 border-zinc-800 hover:border-zinc-700'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="font-semibold text-xs text-zinc-100 truncate">
+                              {item.name}
+                            </span>
+                            {isActive && (
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center gap-1 shrink-0">
+                                <CheckCircle2 className="w-2.5 h-2.5" />
+                                {t.multiKey.activeBadge}
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-[11px] font-mono text-zinc-400 mt-0.5">
+                            {maskApiKey(item.key)}
+                          </p>
+                        </div>
+
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          {!isActive && (
+                            <button
+                              type="button"
+                              onClick={() => handleActivateKey(item.id)}
+                              className="px-2.5 py-1 rounded-lg text-xs font-medium bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 hover:text-white transition-colors"
+                              title={t.multiKey.activateKey}
+                            >
+                              {t.multiKey.activateKey}
+                            </button>
+                          )}
+
+                          <button
+                            type="button"
+                            onClick={() => handleTestSpecificKey(item)}
+                            disabled={isTesting || testStatus.loading}
+                            className="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 border border-transparent hover:border-zinc-700 transition-colors disabled:opacity-40"
+                            title={t.multiKey.testKey}
+                          >
+                            <RefreshCw className={`w-3.5 h-3.5 ${isTesting ? 'animate-spin text-zinc-100' : ''}`} />
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteKey(item.id)}
+                            className="p-1.5 rounded-lg text-zinc-500 hover:text-rose-400 hover:bg-zinc-800 border border-transparent hover:border-zinc-700 transition-colors"
+                            title={t.multiKey.deleteKey}
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            {/* Add Key Form / Accordion */}
+            {isAddingKey ? (
+              <div className="p-3.5 rounded-xl bg-zinc-900 border border-zinc-700 space-y-3 animate-in fade-in">
+                <div className="flex items-center justify-between">
+                  <h4 className="font-semibold text-xs text-zinc-200 flex items-center gap-1.5">
+                    <Plus className="w-3.5 h-3.5 text-zinc-300" />
+                    <span>{t.multiKey.addNewKey}</span>
+                  </h4>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsAddingKey(false);
+                      setKeyInputError(null);
+                    }}
+                    className="text-zinc-400 hover:text-zinc-200 text-xs"
+                  >
+                    {t.multiKey.cancelAdd}
+                  </button>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[11px] text-zinc-300 block">{t.multiKey.keyNameLabel}</label>
+                  <input
+                    type="text"
+                    value={newKeyName}
+                    onChange={(e) => {
+                      setNewKeyName(e.target.value);
+                      if (keyInputError) setKeyInputError(null);
+                    }}
+                    placeholder={t.multiKey.keyNamePlaceholder}
+                    className="w-full bg-zinc-950 border border-zinc-700 rounded-lg px-2.5 py-1.5 text-xs text-zinc-100 focus:outline-none focus:border-zinc-400 transition-colors"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[11px] text-zinc-300 block">{t.multiKey.keyValueLabel}</label>
+                  <div className="relative">
+                    <input
+                      type={showNewKey ? 'text' : 'password'}
+                      value={newKeyValue}
+                      onChange={(e) => {
+                        setNewKeyValue(e.target.value);
+                        if (keyInputError) setKeyInputError(null);
+                      }}
+                      placeholder={isOpenRouter ? 'sk-or-v1-...' : 'AIzaSy...'}
+                      className="w-full bg-zinc-950 border border-zinc-700 rounded-lg px-2.5 py-1.5 pr-8 text-xs font-mono text-zinc-100 focus:outline-none focus:border-zinc-400 transition-colors"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowNewKey(!showNewKey)}
+                      className="absolute right-2 top-2 text-zinc-400 hover:text-zinc-200"
+                    >
+                      {showNewKey ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                    </button>
+                  </div>
+                </div>
+
+                {keyInputError && (
+                  <p className="text-rose-400 text-xs flex items-center gap-1">
+                    <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                    <span>{keyInputError}</span>
+                  </p>
+                )}
+
+                <div className="flex items-center justify-end gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsAddingKey(false);
+                      setKeyInputError(null);
+                    }}
+                    className="px-3 py-1.5 rounded-lg text-xs font-medium text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors"
+                  >
+                    {t.multiKey.cancelAdd}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleAddKey}
+                    className="px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-zinc-100 hover:bg-white text-zinc-950 transition-colors shadow-sm"
+                  >
+                    {t.multiKey.saveKey}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setIsAddingKey(true)}
+                className="w-full py-2 px-3 rounded-xl border border-dashed border-zinc-700 hover:border-zinc-500 hover:bg-zinc-900/60 text-xs font-medium text-zinc-300 hover:text-white transition-colors flex items-center justify-center gap-2"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>{t.multiKey.addNewKey}</span>
+              </button>
+            )}
+
+            {/* Active Key Controls & Model Fetching */}
             <div className="flex items-center gap-2 pt-1">
               <button
                 type="button"
-                onClick={handleTestKey}
-                disabled={
-                  testStatus.loading ||
-                  (isOpenRouter ? !formState.openRouterApiKey : !formState.apiKey)
-                }
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-900 hover:bg-zinc-800 disabled:opacity-40 text-xs font-medium transition-colors text-zinc-200 border border-zinc-700"
+                onClick={handleTestActiveKey}
+                disabled={testStatus.loading || (isOpenRouter ? !formState.openRouterApiKey : !formState.apiKey)}
+                className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-zinc-900 hover:bg-zinc-800 disabled:opacity-40 text-xs font-medium transition-colors text-zinc-200 border border-zinc-700"
               >
-                {testStatus.loading ? (
+                {testStatus.loading && !testingKeyId ? (
                   <RefreshCw className="w-3.5 h-3.5 animate-spin text-zinc-300" />
                 ) : (
                   <Sparkles className="w-3.5 h-3.5 text-zinc-300" />
                 )}
-                <span>Test Connection</span>
+                <span>{t.multiKey.testKey} ({t.multiKey.activeBadge})</span>
               </button>
 
               <button
                 type="button"
                 onClick={handleFetchModels}
                 disabled={isFetchingModels}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-900 hover:bg-zinc-800 disabled:opacity-40 text-xs font-medium transition-colors text-zinc-200 border border-zinc-700"
+                className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-zinc-900 hover:bg-zinc-800 disabled:opacity-40 text-xs font-medium transition-colors text-zinc-200 border border-zinc-700"
               >
                 <RefreshCw
                   className={`w-3.5 h-3.5 text-zinc-300 ${isFetchingModels ? 'animate-spin' : ''}`}
                 />
-                <span>Fetch Models</span>
+                <span>{t.multiKey.fetchModelsWithActive}</span>
               </button>
             </div>
 
@@ -316,7 +664,7 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
             )}
 
             <p className="text-[11px] text-zinc-500">
-              Your API key is stored securely in browser localStorage and is never transmitted to any third-party server other than the designated provider.
+              Your API keys are stored securely in browser localStorage and are never transmitted to any third-party server other than the designated provider.
             </p>
           </div>
 

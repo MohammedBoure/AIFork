@@ -56,12 +56,27 @@ export interface ModelOption {
 }
 
 /**
+ * Individual named API key entry
+ */
+export interface ApiKeyItem {
+  id: string;
+  name: string; // User-friendly name e.g., "Personal Account", "Team High-Limit Key"
+  key: string;
+  provider: AIProvider;
+  createdAt: number;
+}
+
+/**
  * User application settings
  */
 export interface AppSettings {
   provider: AIProvider;
   openRouterApiKey: string;
-  apiKey: string; // Google Gemini API key
+  apiKey: string; // Active Google Gemini API key
+  apiKeys?: ApiKeyItem[]; // List of saved named API keys
+  activeGeminiKeyId?: string; // ID of the active Gemini key
+  activeOpenRouterKeyId?: string; // ID of the active OpenRouter key
+  autoSwitchKeyOnQuota?: boolean; // Automatically cascade to next available key if HTTP 429 quota reached
   defaultModel: string;
   defaultMergeModel: string;
   temperature: number;
@@ -112,6 +127,7 @@ export interface GenerateAIResult {
   actualModelUsed?: string;
   fallbackNotice?: string;
   reasoningContent?: string;
+  switchedKey?: ApiKeyItem;
   tokens?: {
     promptTokens?: number;
     candidatesTokens?: number;

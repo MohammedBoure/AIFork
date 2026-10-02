@@ -1,6 +1,7 @@
 import type {
   SerializedGraph,
   AppSettings,
+  ApiKeyItem,
   ThoughtFlowNode,
   ThoughtFlowEdge,
   GraphSessionMeta,
@@ -20,6 +21,10 @@ export const DEFAULT_SETTINGS: AppSettings = {
   provider: 'openrouter',
   openRouterApiKey: '',
   apiKey: '',
+  apiKeys: [],
+  activeGeminiKeyId: undefined,
+  activeOpenRouterKeyId: undefined,
+  autoSwitchKeyOnQuota: true,
   defaultModel: 'deepseek/deepseek-chat',
   defaultMergeModel: 'deepseek/deepseek-r1',
   temperature: 0.7,
@@ -43,12 +48,77 @@ export function loadSettings(): AppSettings {
     }
     const parsed = JSON.parse(raw);
     const theme = persistedTheme === 'light' || parsed.theme === 'light' ? 'light' : 'dark';
+
+    // Auto-migrate & consolidate ApiKeyItem list
+    const apiKeys: ApiKeyItem[] = Array.isArray(parsed.apiKeys) ? [...parsed.apiKeys] : [];
+    let activeGeminiKeyId = parsed.activeGeminiKeyId;
+    let activeOpenRouterKeyId = parsed.activeOpenRouterKeyId;
+
+    // Migrate legacy Gemini key if provided and not yet in list
+    if (parsed.apiKey && typeof parsed.apiKey === 'string' && parsed.apiKey.trim()) {
+      const trimmedGemini = parsed.apiKey.trim();
+      const existingGemini = apiKeys.find((k) => k.provider === 'gemini' && k.key === trimmedGemini);
+      if (!existingGemini) {
+        const newGeminiKey: ApiKeyItem = {
+          id: `gemini-key-${Date.now()}`,
+          name: 'Gemini Primary Key',
+          key: trimmedGemini,
+          provider: 'gemini',
+          createdAt: Date.now(),
+        };
+        apiKeys.push(newGeminiKey);
+        if (!activeGeminiKeyId) activeGeminiKeyId = newGeminiKey.id;
+      } else if (!activeGeminiKeyId) {
+        activeGeminiKeyId = existingGemini.id;
+      }
+    }
+
+    // Migrate legacy OpenRouter key if provided and not yet in list
+    if (parsed.openRouterApiKey && typeof parsed.openRouterApiKey === 'string' && parsed.openRouterApiKey.trim()) {
+      const trimmedOR = parsed.openRouterApiKey.trim();
+      const existingOR = apiKeys.find((k) => k.provider === 'openrouter' && k.key === trimmedOR);
+      if (!existingOR) {
+        const newORKey: ApiKeyItem = {
+          id: `openrouter-key-${Date.now()}`,
+          name: 'OpenRouter Primary Key',
+          key: trimmedOR,
+          provider: 'openrouter',
+          createdAt: Date.now(),
+        };
+        apiKeys.push(newORKey);
+        if (!activeOpenRouterKeyId) activeOpenRouterKeyId = newORKey.id;
+      } else if (!activeOpenRouterKeyId) {
+        activeOpenRouterKeyId = existingOR.id;
+      }
+    }
+
+    // Synchronize active keys with top-level fields
+    let activeGeminiKey = apiKeys.find((k) => k.id === activeGeminiKeyId && k.provider === 'gemini');
+    if (!activeGeminiKey) {
+      activeGeminiKey = apiKeys.find((k) => k.provider === 'gemini');
+      activeGeminiKeyId = activeGeminiKey?.id;
+    }
+
+    let activeOpenRouterKey = apiKeys.find((k) => k.id === activeOpenRouterKeyId && k.provider === 'openrouter');
+    if (!activeOpenRouterKey) {
+      activeOpenRouterKey = apiKeys.find((k) => k.provider === 'openrouter');
+      activeOpenRouterKeyId = activeOpenRouterKey?.id;
+    }
+
+    const currentGeminiApiKey = activeGeminiKey ? activeGeminiKey.key : (parsed.apiKey || '');
+    const currentOpenRouterApiKey = activeOpenRouterKey ? activeOpenRouterKey.key : (parsed.openRouterApiKey || '');
+
     return {
       ...DEFAULT_SETTINGS,
       ...parsed,
       theme,
-      provider: parsed.provider || (parsed.openRouterApiKey ? 'openrouter' : parsed.apiKey ? 'gemini' : 'openrouter'),
-      openRouterApiKey: parsed.openRouterApiKey || '',
+      apiKeys,
+      activeGeminiKeyId,
+      activeOpenRouterKeyId,
+      autoSwitchKeyOnQuota: parsed.autoSwitchKeyOnQuota !== false,
+      apiKey: currentGeminiApiKey,
+      openRouterApiKey: currentOpenRouterApiKey,
+      provider: parsed.provider || (currentOpenRouterApiKey ? 'openrouter' : currentGeminiApiKey ? 'gemini' : 'openrouter'),
     };
   } catch (err) {
     console.error('Failed to load settings from localStorage:', err);
@@ -58,7 +128,23 @@ export function loadSettings(): AppSettings {
 
 export function saveSettings(settings: AppSettings): void {
   try {
-    localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(settings));
+    // Ensure top-level apiKey & openRouterApiKey match active key IDs if configured
+    let synchronized = { ...settings };
+    if (settings.apiKeys && settings.apiKeys.length > 0) {
+      if (settings.activeGeminiKeyId) {
+        const foundGemini = settings.apiKeys.find((k) => k.id === settings.activeGeminiKeyId && k.provider === 'gemini');
+        if (foundGemini) {
+          synchronized.apiKey = foundGemini.key;
+        }
+      }
+      if (settings.activeOpenRouterKeyId) {
+        const foundOR = settings.apiKeys.find((k) => k.id === settings.activeOpenRouterKeyId && k.provider === 'openrouter');
+        if (foundOR) {
+          synchronized.openRouterApiKey = foundOR.key;
+        }
+      }
+    }
+    localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(synchronized));
   } catch (err) {
     console.error('Failed to save settings to localStorage:', err);
   }

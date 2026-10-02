@@ -40,11 +40,13 @@ Instead of traditional linear chat interfaces, **ThoughtGraph AI** treats conver
 - Automatically generates a structured multi-path comparison and resolution prompt.
 - Executes synthesis using the chosen high-reasoning model and connects all selected parent nodes to the new synthesis node.
 
-### 5. API Key Management & Connectivity Testing
-- Secure `localStorage` storage of Google Gemini API key.
-- **Test Connection** button verifying key validity against Google Gemini endpoint.
-- **Fetch Available Models** dynamically populates the model selector directly from Google's API.
-- **Built-in Demo / Simulator Mode:** Try out branching and synthesis immediately even without an API key.
+### 5. Multi-Key API Manager & Quota Protection 🔑
+- **Multiple Named Keys per Provider:** Store and label unlimited API keys for both Google Gemini and OpenRouter (e.g., "Personal Free Key", "Work High-Tier Key", "Backup Key").
+- **1-Click Active Key Switcher:** Instantly activate any configured key with a single click, with active status badge indicator.
+- **Automatic Quota Limit Failover (HTTP 429):** When an active key hits rate limits or quota exhaustion, ThoughtGraph automatically cascades to the next available configured key for that provider and alerts the user with an informational toast.
+- **Individual Key Connection Testing:** Test authentication and balance/limits for each key individually without having to switch active keys.
+- **Fetch Available Models:** Dynamically populates the model selector directly from the active provider's API.
+- **Secure Persistence & Backward Compatibility:** Keys are isolated in browser `localStorage`, with automatic migration of legacy single-key settings.
 
 ### 6. Graph Sessions & History Manager 🗂️
 - Comprehensive session manager to save, organize, and switch between multiple thought graphs.

@@ -711,6 +711,16 @@ export function useGraphState() {
           )
         );
 
+        if (result.switchedKey) {
+          const sk = result.switchedKey;
+          setSettings((prev) => ({
+            ...prev,
+            ...(sk.provider === 'gemini'
+              ? { apiKey: sk.key, activeGeminiKeyId: sk.id }
+              : { openRouterApiKey: sk.key, activeOpenRouterKeyId: sk.id }),
+          }));
+        }
+
         if (result.fallbackNotice) {
           addToast('info', result.fallbackNotice);
         }
@@ -824,6 +834,16 @@ export function useGraphState() {
               : n
           )
         );
+
+        if (result.switchedKey) {
+          const sk = result.switchedKey;
+          setSettings((prev) => ({
+            ...prev,
+            ...(sk.provider === 'gemini'
+              ? { apiKey: sk.key, activeGeminiKeyId: sk.id }
+              : { openRouterApiKey: sk.key, activeOpenRouterKeyId: sk.id }),
+          }));
+        }
 
         if (result.fallbackNotice) {
           addToast('info', result.fallbackNotice);
@@ -1007,6 +1027,16 @@ export function useGraphState() {
               : n
           )
         );
+
+        if (result.switchedKey) {
+          const sk = result.switchedKey;
+          setSettings((prev) => ({
+            ...prev,
+            ...(sk.provider === 'gemini'
+              ? { apiKey: sk.key, activeGeminiKeyId: sk.id }
+              : { openRouterApiKey: sk.key, activeOpenRouterKeyId: sk.id }),
+          }));
+        }
 
         if (result.fallbackNotice) {
           addToast('info', result.fallbackNotice);
