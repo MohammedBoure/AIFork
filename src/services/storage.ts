@@ -224,7 +224,38 @@ export function loadSessionsIndex(): GraphSessionMeta[] {
     if (raw) {
       const parsed = JSON.parse(raw) as GraphSessionMeta[];
       if (Array.isArray(parsed) && parsed.length > 0) {
-        return parsed.sort((a, b) => b.updatedAt - a.updatedAt);
+        let changed = false;
+        const cleaned = parsed.map((s) => {
+          if (
+            s.title === 'جلسة أفكار جديدة (New Graph)' ||
+            s.title === 'جلسة أفكار جديدة (New Canvas)' ||
+            s.title === 'جلسة الأفكار الأولية (Initial Graph)' ||
+            s.title === 'جلسة أفكار جديدة' ||
+            s.title === 'جلسة أفكار جديد' ||
+            s.title.startsWith('جلسة أفكار #')
+          ) {
+            changed = true;
+            const loaded = loadSession(s.id);
+            if (loaded) {
+              loaded.title = 'Session';
+              try {
+                localStorage.setItem(STORAGE_KEYS.SESSION_PREFIX + s.id, JSON.stringify(loaded));
+              } catch {
+                // ignore
+              }
+            }
+            return { ...s, title: 'Session' };
+          }
+          return s;
+        });
+        if (changed) {
+          try {
+            localStorage.setItem(STORAGE_KEYS.SESSIONS_INDEX, JSON.stringify(cleaned));
+          } catch {
+            // ignore
+          }
+        }
+        return cleaned.sort((a, b) => b.updatedAt - a.updatedAt);
       }
     }
 
@@ -234,7 +265,7 @@ export function loadSessionsIndex(): GraphSessionMeta[] {
     const initialNodes = existingActive?.nodes || [];
     const initialEdges = existingActive?.edges || [];
     const initialParent = existingActive?.activeParentId ?? (initialNodes[0]?.id || null);
-    const initialTitle = existingActive?.title || 'جلسة الأفكار الأولية (Initial Graph)';
+    const initialTitle = existingActive?.title || 'Session';
 
     const initialSession: GraphSession = {
       id: initialSessionId,
@@ -335,7 +366,21 @@ export function createSession(
 ): GraphSession {
   const timestamp = Date.now();
   const id = `session-${timestamp}`;
-  const defaultTitle = title || `جلسة أفكار #${new Date(timestamp).toLocaleDateString('ar-EG', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}`;
+
+  let defaultTitle = title;
+  if (!defaultTitle) {
+    const rawIndex = localStorage.getItem(STORAGE_KEYS.SESSIONS_INDEX);
+    let sessionNumber = 1;
+    if (rawIndex) {
+      try {
+        const index = JSON.parse(rawIndex) as GraphSessionMeta[];
+        sessionNumber = index.length + 1;
+      } catch {
+        sessionNumber = 1;
+      }
+    }
+    defaultTitle = sessionNumber === 1 ? 'Session' : `Session ${sessionNumber}`;
+  }
 
   const nodes = initialData?.nodes || [];
   const edges = initialData?.edges || [];

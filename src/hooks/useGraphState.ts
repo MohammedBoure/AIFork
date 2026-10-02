@@ -67,7 +67,7 @@ export function useGraphState() {
     if (activeId && loadSession(activeId)) return activeId;
     const initialIndex = loadSessionsIndex();
     if (initialIndex.length > 0 && loadSession(initialIndex[0].id)) return initialIndex[0].id;
-    const newSess = createSession('جلسة أفكار جديدة (New Graph)');
+    const newSess = createSession('Session');
     return newSess.id;
   });
 
@@ -507,10 +507,12 @@ export function useGraphState() {
   // Create a new session
   const handleCreateSession = useCallback(
     (title?: string, initialData?: { nodes: ThoughtFlowNode[]; edges: ThoughtFlowEdge[]; activeParentId?: string | null }) => {
-      const newSession = createSession(title, initialData);
+      const existingSessions = loadSessionsIndex();
+      const sessionTitle = title || (existingSessions.length === 0 ? 'Session' : `Session ${existingSessions.length + 1}`);
+      const newSession = createSession(sessionTitle, initialData);
       setSessions(loadSessionsIndex());
       handleSwitchSession(newSession.id);
-      addToast('success', 'تم إنشاء جلسة أفكار جديدة بنجاح.');
+      addToast('success', `Created "${newSession.title}".`);
       return newSession.id;
     },
     [handleSwitchSession, addToast]
@@ -532,7 +534,7 @@ export function useGraphState() {
       if (updatedIndex.length > 0) {
         handleSwitchSession(updatedIndex[0].id);
       } else {
-        const fresh = createSession('جلسة أفكار جديدة (New Canvas)');
+        const fresh = createSession('Session');
         setSessions(loadSessionsIndex());
         handleSwitchSession(fresh.id);
       }
