@@ -3,7 +3,6 @@ import {
   GitFork,
   Settings,
   Download,
-  LayoutGrid,
   RotateCcw,
   KeyRound,
   Merge,
@@ -14,6 +13,8 @@ import {
   Redo2,
   Sun,
   Moon,
+  ArrowDownUp,
+  ArrowLeftRight,
 } from 'lucide-react';
 import { Badge } from './Badge';
 import { useLanguage } from '../../i18n/useLanguage';
@@ -32,6 +33,8 @@ interface NavbarProps {
   onOpenSettings: () => void;
   onOpenExport: () => void;
   onAutoLayout: () => void;
+  layoutDirection?: 'TB' | 'LR';
+  onToggleLayoutDirection?: () => void;
   onResetCanvas: () => void;
   onOpenMergeModal: () => void;
   onOpenFocusFlow?: (nodeId: string) => void;
@@ -57,6 +60,8 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenSettings,
   onOpenExport,
   onAutoLayout,
+  layoutDirection = 'TB',
+  onToggleLayoutDirection,
   onResetCanvas,
   onOpenMergeModal,
   onOpenFocusFlow,
@@ -166,14 +171,20 @@ export const Navbar: React.FC<NavbarProps> = ({
           </button>
         )}
 
-        {/* Auto Layout */}
+        {/* Layout Direction & Auto-align */}
         <button
-          onClick={onAutoLayout}
-          className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-zinc-700 dark:text-zinc-300 hover:text-zinc-950 dark:hover:text-white bg-zinc-100 dark:bg-zinc-900 hover:bg-zinc-200 dark:hover:bg-zinc-800 text-xs transition-colors border border-zinc-200 dark:border-zinc-800"
-          title={t.navbar.autoLayout}
+          onClick={onToggleLayoutDirection || onAutoLayout}
+          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-zinc-700 dark:text-zinc-300 hover:text-zinc-950 dark:hover:text-white bg-zinc-100 dark:bg-zinc-900 hover:bg-zinc-200 dark:hover:bg-zinc-800 text-xs transition-colors border border-zinc-200 dark:border-zinc-800 cursor-pointer"
+          title={layoutDirection === 'TB' ? t.layout.toggleTooltipTB : t.layout.toggleTooltipLR}
         >
-          <LayoutGrid className="w-3.5 h-3.5 text-zinc-500 dark:text-zinc-400" />
-          <span className="hidden md:inline">{t.navbar.autoLayout}</span>
+          {layoutDirection === 'TB' ? (
+            <ArrowDownUp className="w-3.5 h-3.5 text-zinc-900 dark:text-zinc-100" />
+          ) : (
+            <ArrowLeftRight className="w-3.5 h-3.5 text-zinc-900 dark:text-zinc-100" />
+          )}
+          <span className="hidden md:inline font-medium">
+            {layoutDirection === 'TB' ? t.layout.forwardShort : t.layout.sidewaysShort}
+          </span>
         </button>
 
         {/* Export / Import */}

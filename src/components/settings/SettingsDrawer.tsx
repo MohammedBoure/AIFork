@@ -15,6 +15,8 @@ import {
   Languages,
   Plus,
   Trash2,
+  ArrowDownUp,
+  ArrowLeftRight,
 } from 'lucide-react';
 import type { AppSettings, ModelOption, AIProvider, ApiKeyItem } from '../../types/graph';
 import { testGeminiApiKey, fetchAvailableGeminiModels, DEFAULT_PRESET_MODELS } from '../../services/gemini';
@@ -794,6 +796,39 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
                 <option value="bezier">Curved Bezier</option>
                 <option value="straight">Straight Vector</option>
               </select>
+            </div>
+
+            <div>
+              <label className="block text-xs text-zinc-300 mb-1.5">{t.layout.direction}</label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setFormState({ ...formState, layoutDirection: 'TB' })}
+                  className={`flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-xs font-medium border transition-colors cursor-pointer ${
+                    (formState.layoutDirection || 'TB') === 'TB'
+                      ? 'bg-zinc-100 text-zinc-950 font-semibold border-white'
+                      : 'bg-zinc-900 text-zinc-400 hover:text-zinc-200 border-zinc-700'
+                  }`}
+                >
+                  <ArrowDownUp className="w-3.5 h-3.5" />
+                  <span>{t.layout.forward}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFormState({ ...formState, layoutDirection: 'LR' })}
+                  className={`flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-xs font-medium border transition-colors cursor-pointer ${
+                    formState.layoutDirection === 'LR'
+                      ? 'bg-zinc-100 text-zinc-950 font-semibold border-white'
+                      : 'bg-zinc-900 text-zinc-400 hover:text-zinc-200 border-zinc-700'
+                  }`}
+                >
+                  <ArrowLeftRight className="w-3.5 h-3.5" />
+                  <span>{t.layout.sideways}</span>
+                </button>
+              </div>
+              <p className="text-[11px] text-zinc-500 mt-1">
+                {(formState.layoutDirection || 'TB') === 'TB' ? t.layout.forwardDesc : t.layout.sidewaysDesc}
+              </p>
             </div>
           </div>
 

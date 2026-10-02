@@ -2,34 +2,41 @@ import dagre from 'dagre';
 import { Position } from '@xyflow/react';
 import type { ThoughtFlowNode, ThoughtFlowEdge } from '../types/graph';
 
-const NODE_WIDTH = 380;
-const NODE_HEIGHT = 260;
+export const NODE_WIDTH = 380;
+export const NODE_HEIGHT = 260;
 
 /**
  * Calculates automated positions for nodes and edges using dagre DAG layout.
  * Supports Left-to-Right ('LR') or Top-to-Bottom ('TB').
+ * Uses balanced median alignment so linear branches stay strictly in a straight line
+ * (Top-to-Bottom nodes appear vertically stacked directly under each other;
+ * Left-to-Right nodes appear horizontally directly to the side).
  */
 export function getLayoutedElements(
   nodes: ThoughtFlowNode[],
   edges: ThoughtFlowEdge[],
   direction: 'TB' | 'LR' = 'TB'
 ): { nodes: ThoughtFlowNode[]; edges: ThoughtFlowEdge[] } {
+  if (nodes.length === 0) {
+    return { nodes, edges };
+  }
+
   const dagreGraph = new dagre.graphlib.Graph();
   dagreGraph.setDefaultEdgeLabel(() => ({}));
 
   const isHorizontal = direction === 'LR';
   dagreGraph.setGraph({
     rankdir: direction,
-    align: 'DL',
-    nodesep: isHorizontal ? 80 : 120,
-    ranksep: isHorizontal ? 140 : 160,
+    nodesep: isHorizontal ? 90 : 120,
+    ranksep: isHorizontal ? 120 : 130,
     marginx: 50,
     marginy: 50,
   });
 
   nodes.forEach((node) => {
     const contentLength = node.data.content ? node.data.content.length : 0;
-    const estimatedHeight = Math.min(Math.max(NODE_HEIGHT, 180 + Math.floor(contentLength / 3)), 600);
+    // Clamped realistic height calculation matching max-h-72 (288px) + header + actions
+    const estimatedHeight = Math.min(Math.max(220, 180 + Math.floor(contentLength / 4)), 400);
 
     dagreGraph.setNode(node.id, {
       width: NODE_WIDTH,
@@ -46,15 +53,15 @@ export function getLayoutedElements(
   const layoutedNodes: ThoughtFlowNode[] = nodes.map((node) => {
     const nodeWithPosition = dagreGraph.node(node.id);
     const contentLength = node.data.content ? node.data.content.length : 0;
-    const estimatedHeight = Math.min(Math.max(NODE_HEIGHT, 180 + Math.floor(contentLength / 3)), 600);
+    const estimatedHeight = Math.min(Math.max(220, 180 + Math.floor(contentLength / 4)), 400);
 
     return {
       ...node,
       targetPosition: isHorizontal ? Position.Left : Position.Top,
       sourcePosition: isHorizontal ? Position.Right : Position.Bottom,
       position: {
-        x: nodeWithPosition.x - NODE_WIDTH / 2,
-        y: nodeWithPosition.y - estimatedHeight / 2,
+        x: nodeWithPosition ? nodeWithPosition.x - NODE_WIDTH / 2 : node.position.x,
+        y: nodeWithPosition ? nodeWithPosition.y - estimatedHeight / 2 : node.position.y,
       },
     };
   });
@@ -64,7 +71,9 @@ export function getLayoutedElements(
 
 /**
  * Calculates an offset position for a new child node when added dynamically.
- * Prevents overlapping with existing siblings, respecting Top-to-Bottom ('TB') or Left-to-Right ('LR') direction.
+ * In 'TB' mode: single child continues directly underneath the parent (same X axis).
+ * In 'LR' mode: single child continues directly sideways to the right (same Y axis).
+ * Sibling branches are distributed symmetrically without overlapping.
  */
 export function calculateChildPosition(
   parentIds: string[],
@@ -78,10 +87,10 @@ export function calculateChildPosition(
     if (nodes.length === 0) return { x: 250, y: 150 };
     if (isHorizontal) {
       const maxY = Math.max(...nodes.map((n) => n.position.y));
-      return { x: 250, y: maxY + NODE_HEIGHT + 60 };
+      return { x: 250, y: maxY + 320 };
     } else {
       const maxX = Math.max(...nodes.map((n) => n.position.x));
-      return { x: maxX + NODE_WIDTH + 60, y: 150 };
+      return { x: maxX + NODE_WIDTH + 100, y: 150 };
     }
   }
 
@@ -92,11 +101,11 @@ export function calculateChildPosition(
       if (isHorizontal) {
         const maxX = Math.max(...parentNodes.map((n) => n.position.x));
         const avgY = parentNodes.reduce((sum, n) => sum + n.position.y, 0) / parentNodes.length;
-        return { x: maxX + NODE_WIDTH + 140, y: avgY };
+        return { x: maxX + NODE_WIDTH + 120, y: avgY };
       } else {
         const avgX = parentNodes.reduce((sum, n) => sum + n.position.x, 0) / parentNodes.length;
         const maxY = Math.max(...parentNodes.map((n) => n.position.y));
-        return { x: avgX, y: maxY + NODE_HEIGHT + 140 };
+        return { x: avgX, y: maxY + 320 };
       }
     }
   }
@@ -112,17 +121,32 @@ export function calculateChildPosition(
   const siblingCount = existingChildEdges.length;
 
   if (isHorizontal) {
-    const yOffset = (siblingCount - 0.5) * (NODE_HEIGHT + 40);
-    const xOffset = NODE_WIDTH + 130;
+    // Sideways flow (LR): parent to right, siblings spread vertically
+    const xOffset = NODE_WIDTH + 120;
+    // Sibling 0: exact same horizontal line (y = parent.y)
+    // Sibling 1+: spread symmetrically alternating top and bottom
+    const yOffset =
+      siblingCount === 0
+        ? 0
+        : (siblingCount % 2 === 1 ? Math.ceil(siblingCount / 2) : -Math.ceil(siblingCount / 2)) * 320;
+
     return {
       x: parentNode.position.x + xOffset,
-      y: parentNode.position.y + (siblingCount === 0 ? 0 : yOffset),
+      y: parentNode.position.y + yOffset,
     };
   } else {
-    const xOffset = (siblingCount - 0.5) * (NODE_WIDTH + 40);
-    const yOffset = NODE_HEIGHT + 130;
+    // Forward flow (TB): parent to bottom, siblings spread horizontally
+    // Sibling 0: exact same vertical line (x = parent.x) -> strictly under each other
+    // Sibling 1+: spread symmetrically alternating right and left
+    const yOffset = 320;
+    const xOffset =
+      siblingCount === 0
+        ? 0
+        : (siblingCount % 2 === 1 ? Math.ceil(siblingCount / 2) : -Math.ceil(siblingCount / 2)) *
+          (NODE_WIDTH + 100);
+
     return {
-      x: parentNode.position.x + (siblingCount === 0 ? 0 : xOffset),
+      x: parentNode.position.x + xOffset,
       y: parentNode.position.y + yOffset,
     };
   }

@@ -3,6 +3,7 @@ import {
   applyNodeChanges,
   applyEdgeChanges,
   addEdge,
+  Position,
 } from '@xyflow/react';
 import type {
   OnNodesChange,
@@ -87,8 +88,16 @@ export function useGraphState() {
   const [focusNodeId, setFocusNodeId] = useState<string | null>(null);
   const [isFocusFlowOpen, setIsFocusFlowOpen] = useState(false);
 
-  // Canvas visual state
-  const [layoutDirection, setLayoutDirection] = useState<'TB' | 'LR'>('TB');
+  // Canvas visual state: persist orientation across sessions and reloads
+  const [layoutDirection, setLayoutDirection] = useState<'TB' | 'LR'>(() => {
+    try {
+      const persisted = localStorage.getItem('thoughtgraph_ai_layout_direction') as 'TB' | 'LR' | null;
+      if (persisted === 'TB' || persisted === 'LR') return persisted;
+    } catch {
+      // ignore
+    }
+    return activeSessionData.layoutDirection || settings.layoutDirection || 'TB';
+  });
   const [showMinimap, setShowMinimap] = useState(true);
   const [isGenerating, setIsGenerating] = useState(false);
 
@@ -396,20 +405,50 @@ export function useGraphState() {
     addToast('info', `Deleted ${nodeIds.length} nodes from canvas.`);
   }, [activeParentId, focusNodeId, takeSnapshot, addToast]);
 
-  // Auto-layout
-  const handleAutoLayout = useCallback((direction: 'TB' | 'LR' = layoutDirection) => {
-    takeSnapshot();
-    setLayoutDirection(direction);
-    setNodes((currentNodes) => {
-      setEdges((currentEdges) => {
-        const layouted = getLayoutedElements(currentNodes, currentEdges, direction);
-        return layouted.edges;
+  // Unified Auto-layout executor with persistent orientation
+  const runAutoLayout = useCallback(
+    (targetDirection: 'TB' | 'LR' = layoutDirection, recordSnapshot = true, showToast = true) => {
+      if (recordSnapshot) {
+        takeSnapshot();
+      }
+      setLayoutDirection(targetDirection);
+      try {
+        localStorage.setItem('thoughtgraph_ai_layout_direction', targetDirection);
+      } catch {
+        // ignore
+      }
+      setSettings((prev) => ({ ...prev, layoutDirection: targetDirection }));
+
+      setNodes((currentNodes) => {
+        setEdges((currentEdges) => {
+          const layouted = getLayoutedElements(currentNodes, currentEdges, targetDirection);
+          setTimeout(() => {
+            setNodes(layouted.nodes);
+          }, 0);
+          return layouted.edges;
+        });
+        return currentNodes;
       });
-      const layouted = getLayoutedElements(currentNodes, edges, direction);
-      return layouted.nodes;
-    });
-    addToast('success', `Graph aligned (${direction === 'TB' ? 'Top-to-Bottom' : 'Left-to-Right'}).`);
-  }, [edges, layoutDirection, takeSnapshot, addToast]);
+
+      if (showToast) {
+        addToast(
+          'success',
+          targetDirection === 'TB'
+            ? 'تم ضبط الاتجاه للأمام (عمودي خطي تحت بعض)'
+            : 'تم ضبط الاتجاه للجانب (أفقي خطي)'
+        );
+      }
+    },
+    [layoutDirection, takeSnapshot, addToast]
+  );
+
+  // Auto-layout trigger
+  const handleAutoLayout = useCallback(
+    (direction?: 'TB' | 'LR') => {
+      runAutoLayout(direction || layoutDirection, true, true);
+    },
+    [layoutDirection, runAutoLayout]
+  );
 
   // Undo previous action
   const handleUndo = useCallback(() => {
@@ -453,11 +492,14 @@ export function useGraphState() {
   const handleSaveSettings = useCallback((newSettings: AppSettings) => {
     setSettings(newSettings);
     saveSettings(newSettings);
+    if (newSettings.layoutDirection && newSettings.layoutDirection !== layoutDirection) {
+      runAutoLayout(newSettings.layoutDirection, true, false);
+    }
     if (newSettings.provider !== settings.provider) {
       setAvailableModels(getPresetModelsForProvider(newSettings.provider));
     }
     addToast('success', 'Settings saved successfully.');
-  }, [settings.provider, addToast]);
+  }, [settings.provider, layoutDirection, runAutoLayout, addToast]);
 
   // Load a template or imported graph with deep copy
   const handleLoadGraph = useCallback((graph: SerializedGraph) => {
@@ -501,6 +543,14 @@ export function useGraphState() {
     setActiveParentId(targetSession.activeParentId || null);
     setSelectedForMergeIds([]);
     setActiveSessionId(targetSession.id);
+    if (targetSession.layoutDirection) {
+      setLayoutDirection(targetSession.layoutDirection);
+      try {
+        localStorage.setItem('thoughtgraph_ai_layout_direction', targetSession.layoutDirection);
+      } catch {
+        // ignore
+      }
+    }
     addToast('info', `تم الانتقال إلى: "${targetSession.title}".`);
   }, [addToast]);
 
@@ -509,13 +559,16 @@ export function useGraphState() {
     (title?: string, initialData?: { nodes: ThoughtFlowNode[]; edges: ThoughtFlowEdge[]; activeParentId?: string | null }) => {
       const existingSessions = loadSessionsIndex();
       const sessionTitle = title || (existingSessions.length === 0 ? 'Session' : `Session ${existingSessions.length + 1}`);
-      const newSession = createSession(sessionTitle, initialData);
+      const newSession = createSession(sessionTitle, {
+        ...initialData,
+        layoutDirection,
+      });
       setSessions(loadSessionsIndex());
       handleSwitchSession(newSession.id);
       addToast('success', `Created "${newSession.title}".`);
       return newSession.id;
     },
-    [handleSwitchSession, addToast]
+    [layoutDirection, handleSwitchSession, addToast]
   );
 
   // Delete a session
@@ -598,13 +651,15 @@ export function useGraphState() {
       const isLR = layoutDirection === 'LR';
       const aiPos = isLR
         ? { x: userPos.x + 420, y: userPos.y }
-        : { x: userPos.x, y: userPos.y + 240 };
+        : { x: userPos.x, y: userPos.y + 300 };
 
       // 1. Create User Node
       const userNode: ThoughtFlowNode = {
         id: userNodeId,
         type: 'thought',
         position: userPos,
+        targetPosition: isLR ? Position.Left : Position.Top,
+        sourcePosition: isLR ? Position.Right : Position.Bottom,
         data: {
           id: userNodeId,
           role: 'user',
@@ -633,6 +688,8 @@ export function useGraphState() {
         id: assistantNodeId,
         type: 'thought',
         position: aiPos,
+        targetPosition: isLR ? Position.Left : Position.Top,
+        sourcePosition: isLR ? Position.Right : Position.Bottom,
         data: {
           id: assistantNodeId,
           role: 'assistant',
@@ -729,7 +786,7 @@ export function useGraphState() {
 
         if (settings.autoLayoutOnAdd) {
           setTimeout(() => {
-            handleAutoLayout();
+            runAutoLayout(layoutDirection, false, false);
           }, 150);
         }
       } catch (err: unknown) {
@@ -761,7 +818,7 @@ export function useGraphState() {
       settings,
       layoutDirection,
       takeSnapshot,
-      handleAutoLayout,
+      runAutoLayout,
       addToast,
     ]
   );
@@ -943,10 +1000,13 @@ export function useGraphState() {
       const selectedNodes = nodes.filter((n) => selectedForMergeIds.includes(n.id));
       const mergePos = calculateChildPosition(selectedForMergeIds, nodes, edges, layoutDirection);
 
+      const isLR = layoutDirection === 'LR';
       const mergeNode: ThoughtFlowNode = {
         id: mergeNodeId,
         type: 'thought',
         position: mergePos,
+        targetPosition: isLR ? Position.Left : Position.Top,
+        sourcePosition: isLR ? Position.Right : Position.Bottom,
         data: {
           id: mergeNodeId,
           role: 'assistant',
@@ -1048,7 +1108,7 @@ export function useGraphState() {
 
         if (settings.autoLayoutOnAdd) {
           setTimeout(() => {
-            handleAutoLayout();
+            runAutoLayout(layoutDirection, false, false);
           }, 150);
         }
       } catch (err: unknown) {
@@ -1080,7 +1140,7 @@ export function useGraphState() {
       settings,
       layoutDirection,
       takeSnapshot,
-      handleAutoLayout,
+      runAutoLayout,
       addToast,
     ]
   );

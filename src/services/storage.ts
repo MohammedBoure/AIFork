@@ -15,6 +15,7 @@ const STORAGE_KEYS = {
   SESSIONS_INDEX: 'thoughtgraph_ai_sessions_index',
   ACTIVE_SESSION_ID: 'thoughtgraph_ai_active_session_id',
   SESSION_PREFIX: 'thoughtgraph_ai_session_',
+  LAYOUT_DIRECTION: 'thoughtgraph_ai_layout_direction',
 };
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -34,6 +35,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   autoLayoutOnAdd: true,
   edgeType: 'smoothstep',
   theme: 'dark',
+  layoutDirection: 'TB',
 };
 
 export function loadSettings(): AppSettings {
@@ -108,10 +110,14 @@ export function loadSettings(): AppSettings {
     const currentGeminiApiKey = activeGeminiKey ? activeGeminiKey.key : (parsed.apiKey || '');
     const currentOpenRouterApiKey = activeOpenRouterKey ? activeOpenRouterKey.key : (parsed.openRouterApiKey || '');
 
+    const persistedLayoutDir = (localStorage.getItem(STORAGE_KEYS.LAYOUT_DIRECTION) || parsed.layoutDirection) as 'TB' | 'LR' | null;
+    const layoutDirection: 'TB' | 'LR' = persistedLayoutDir === 'LR' ? 'LR' : 'TB';
+
     return {
       ...DEFAULT_SETTINGS,
       ...parsed,
       theme,
+      layoutDirection,
       apiKeys,
       activeGeminiKeyId,
       activeOpenRouterKeyId,
@@ -128,6 +134,10 @@ export function loadSettings(): AppSettings {
 
 export function saveSettings(settings: AppSettings): void {
   try {
+    if (settings.layoutDirection) {
+      localStorage.setItem(STORAGE_KEYS.LAYOUT_DIRECTION, settings.layoutDirection);
+    }
+
     // Ensure top-level apiKey & openRouterApiKey match active key IDs if configured
     let synchronized = { ...settings };
     if (settings.apiKeys && settings.apiKeys.length > 0) {
@@ -339,6 +349,7 @@ export function saveSession(session: GraphSession): void {
       createdAt: session.createdAt,
       updatedAt: session.updatedAt || Date.now(),
       previewText: extractPreviewText(session.nodes),
+      layoutDirection: session.layoutDirection,
     };
 
     const existingIdx = index.findIndex((s) => s.id === session.id);
@@ -362,7 +373,12 @@ export function saveSession(session: GraphSession): void {
  */
 export function createSession(
   title?: string,
-  initialData?: { nodes: ThoughtFlowNode[]; edges: ThoughtFlowEdge[]; activeParentId?: string | null }
+  initialData?: {
+    nodes?: ThoughtFlowNode[];
+    edges?: ThoughtFlowEdge[];
+    activeParentId?: string | null;
+    layoutDirection?: 'TB' | 'LR';
+  }
 ): GraphSession {
   const timestamp = Date.now();
   const id = `session-${timestamp}`;
@@ -385,6 +401,10 @@ export function createSession(
   const nodes = initialData?.nodes || [];
   const edges = initialData?.edges || [];
   const activeParentId = initialData?.activeParentId || (nodes[0]?.id ?? null);
+  const layoutDirection: 'TB' | 'LR' =
+    initialData?.layoutDirection ||
+    (localStorage.getItem(STORAGE_KEYS.LAYOUT_DIRECTION) as 'TB' | 'LR') ||
+    'TB';
 
   const newSession: GraphSession = {
     id,
@@ -397,6 +417,7 @@ export function createSession(
     nodes,
     edges,
     activeParentId,
+    layoutDirection,
   };
 
   saveSession(newSession);

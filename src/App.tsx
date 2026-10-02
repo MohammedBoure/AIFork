@@ -120,6 +120,8 @@ export function ThoughtGraphApp() {
         onOpenSettings={() => setIsSettingsOpen(true)}
         onOpenExport={() => setIsExportOpen(true)}
         onAutoLayout={() => handleAutoLayout(layoutDirection)}
+        layoutDirection={layoutDirection}
+        onToggleLayoutDirection={() => handleAutoLayout(layoutDirection === 'TB' ? 'LR' : 'TB')}
         onResetCanvas={handleResetCanvas}
         onOpenMergeModal={() => setIsMergeModalOpen(true)}
         onOpenFocusFlow={handleOpenFocusFlow}

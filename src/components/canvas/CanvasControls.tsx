@@ -10,6 +10,7 @@ import {
   Redo2,
 } from 'lucide-react';
 import { useReactFlow } from '@xyflow/react';
+import { useLanguage } from '../../i18n/useLanguage';
 
 interface CanvasControlsProps {
   onAutoLayout: (direction: 'TB' | 'LR') => void;
@@ -32,6 +33,7 @@ export const CanvasControls: React.FC<CanvasControlsProps> = ({
   onUndo,
   onRedo,
 }) => {
+  const { t } = useLanguage();
   const { zoomIn, zoomOut, fitView } = useReactFlow();
 
   const toggleDirection = () => {
@@ -99,8 +101,8 @@ export const CanvasControls: React.FC<CanvasControlsProps> = ({
       {/* Auto-layout direction toggle */}
       <button
         onClick={toggleDirection}
-        className="p-2 rounded-xl text-zinc-500 hover:text-zinc-950 dark:text-zinc-400 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800/80 transition-all cursor-pointer"
-        title={`Switch layout: currently ${layoutDirection === 'TB' ? 'Top-to-Bottom' : 'Left-to-Right'}`}
+        className="p-2 rounded-xl text-zinc-600 hover:text-zinc-950 dark:text-zinc-300 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800/80 transition-all cursor-pointer"
+        title={layoutDirection === 'TB' ? t.layout.toggleTooltipTB : t.layout.toggleTooltipLR}
         type="button"
       >
         {layoutDirection === 'TB' ? (

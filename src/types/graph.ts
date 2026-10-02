@@ -86,6 +86,7 @@ export interface AppSettings {
   autoLayoutOnAdd: boolean;
   edgeType: 'smoothstep' | 'bezier' | 'straight';
   theme: 'dark' | 'light' | 'monochrome';
+  layoutDirection?: 'TB' | 'LR';
 }
 
 /**
@@ -165,6 +166,7 @@ export interface GraphSessionMeta {
   createdAt: number;
   updatedAt: number;
   previewText?: string;
+  layoutDirection?: 'TB' | 'LR';
 }
 
 /**
