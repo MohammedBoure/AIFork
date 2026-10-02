@@ -154,6 +154,8 @@ export function ThoughtGraphApp() {
           onBatchDelete={handleBatchDelete}
           onDeleteEdge={handleDeleteEdge}
           theme={theme}
+          canUndo={canUndo}
+          canRedo={canRedo}
           onUndo={handleUndo}
           onRedo={handleRedo}
         />

@@ -46,6 +46,8 @@ interface ThoughtCanvasProps {
   onBatchDelete: (nodeIds: string[]) => void;
   onDeleteEdge?: (edgeId: string) => void;
   theme?: 'dark' | 'light' | 'monochrome';
+  canUndo?: boolean;
+  canRedo?: boolean;
   onUndo?: () => void;
   onRedo?: () => void;
 }
@@ -76,6 +78,8 @@ export const ThoughtCanvas: React.FC<ThoughtCanvasProps> = ({
   onBatchDelete,
   onDeleteEdge,
   theme = 'dark',
+  canUndo = false,
+  canRedo = false,
   onUndo,
   onRedo,
 }) => {
@@ -314,6 +318,10 @@ export const ThoughtCanvas: React.FC<ThoughtCanvasProps> = ({
           layoutDirection={layoutDirection}
           showMinimap={showMinimap}
           onToggleMinimap={onToggleMinimap}
+          canUndo={canUndo}
+          canRedo={canRedo}
+          onUndo={onUndo}
+          onRedo={onRedo}
         />
 
         {/* Batch Action Dock for Multi-Selection & Quick Deletion */}
@@ -346,6 +354,10 @@ export const ThoughtCanvas: React.FC<ThoughtCanvasProps> = ({
           }
           multiSelectedCount={multiSelectedNodeIds.length}
           onBatchDeleteSelected={() => onBatchDelete(multiSelectedNodeIds)}
+          canUndo={canUndo}
+          canRedo={canRedo}
+          onUndo={onUndo}
+          onRedo={onRedo}
         />
       </div>
     </NodeActionsProvider>

@@ -10,6 +10,8 @@ import {
   LayoutGrid,
   Maximize,
   Layers,
+  Undo2,
+  Redo2,
 } from 'lucide-react';
 import type { ContextMenuState } from '../../types/graph';
 import { useLanguage } from '../../i18n/useLanguage';
@@ -30,6 +32,10 @@ interface ContextMenuProps {
   isSelectedForMerge: boolean;
   multiSelectedCount?: number;
   onBatchDeleteSelected?: () => void;
+  canUndo?: boolean;
+  canRedo?: boolean;
+  onUndo?: () => void;
+  onRedo?: () => void;
 }
 
 export const ContextMenu: React.FC<ContextMenuProps> = ({
@@ -48,6 +54,10 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
   isSelectedForMerge,
   multiSelectedCount = 0,
   onBatchDeleteSelected,
+  canUndo = false,
+  canRedo = false,
+  onUndo,
+  onRedo,
 }) => {
   const { t } = useLanguage();
   const menuRef = useRef<HTMLDivElement>(null);
@@ -193,6 +203,42 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
             <Sparkles className="w-3.5 h-3.5 text-zinc-600 dark:text-zinc-300" />
             <span>{t.contextMenu.newGenesis}</span>
           </button>
+
+          {onUndo && (
+            <button
+              onClick={() => {
+                if (canUndo) onUndo();
+                onClose();
+              }}
+              disabled={!canUndo}
+              className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-zinc-700 dark:text-zinc-200 hover:text-zinc-950 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-900 disabled:opacity-30 disabled:cursor-not-allowed transition-colors text-left"
+            >
+              <div className="flex items-center gap-2">
+                <Undo2 className="w-3.5 h-3.5 text-zinc-500 dark:text-zinc-400" />
+                <span>{t.navbar.undo}</span>
+              </div>
+              <span className="text-[10px] text-zinc-400 dark:text-zinc-500 font-mono">Ctrl+Z</span>
+            </button>
+          )}
+
+          {onRedo && (
+            <button
+              onClick={() => {
+                if (canRedo) onRedo();
+                onClose();
+              }}
+              disabled={!canRedo}
+              className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-zinc-700 dark:text-zinc-200 hover:text-zinc-950 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-900 disabled:opacity-30 disabled:cursor-not-allowed transition-colors text-left"
+            >
+              <div className="flex items-center gap-2">
+                <Redo2 className="w-3.5 h-3.5 text-zinc-500 dark:text-zinc-400" />
+                <span>{t.navbar.redo}</span>
+              </div>
+              <span className="text-[10px] text-zinc-400 dark:text-zinc-500 font-mono">Ctrl+Y</span>
+            </button>
+          )}
+
+          <div className="h-[1px] bg-zinc-200 dark:bg-zinc-800/80 my-1" />
 
           <button
             onClick={() => {
